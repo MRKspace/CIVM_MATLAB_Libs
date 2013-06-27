@@ -1,0 +1,46 @@
+#############
+# Mex files #
+#############
+*.mexa64
+*.mexglx
+*.mexmaci
+*.mexmaci64
+*.mexmac
+*.mexw64
+*.mex
+
+#############
+# Images    #
+#############
+*.dcm
+*.dicom
+*.jpg
+*.jpeg
+*.tiff
+*.tif
+*.raw
+*.img
+*.sdcopen
+
+
+#############
+# Matrices  #
+#############
+*.mat
+
+#############
+# Backups   #
+#############
+*.bak
+*.old*
+
+#############
+# Fessler formats #
+###################
+*.fld
+*.pdb
+#############
+# Specific files #
+##################
+3pLibs/ManualLoad/irt/mri-rf/yip-spsp/bloch/blochmulti_spsp*
+
