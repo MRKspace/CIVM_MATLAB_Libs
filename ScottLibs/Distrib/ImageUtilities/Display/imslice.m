@@ -170,7 +170,7 @@ if(h.vol.NDims > 3)
         h.dim_val_extra_txt(i-3) = uicontrol(h.scroll_uipanel, 'Style', 'edit', ...
             'String', 'test','Callback',@slice_pos_callback,'Units', 'pixels');
         
-        max_v = h.vol.Dims(3);
+        max_v = h.vol.Dims(i);
         step_v = [1 min(round(max_v/4),20)]/(max_v-1);
         
         set(h.dim_slider(i-3),'Max',max_v,'Min',1,'Value',1,'SliderStep',step_v);

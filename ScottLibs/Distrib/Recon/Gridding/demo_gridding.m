@@ -7,12 +7,12 @@
 %   Website: www.ScottHaileRobertson.com
 %   $Revision: 2.0 $  $Date: December, 2012 $
 %   $History: 2/7/2013 - Added Voronoi DCF
-clc; clear all; close all;
+% clc; clear all; close all;
 
-% Recompile because its easy to forget...
-mex -g grid_conv_mex.c;
-mex -g ../DCF/sdc3_MAT.c;
-mex -g ../DCF/dcf_hitplane_mex.c;
+% % Recompile because its easy to forget...
+% mex -g grid_conv_mex.c;
+% mex -g ../DCF/sdc3_MAT.c;
+% mex -g ../DCF/dcf_hitplane_mex.c;
 
 % Read P-File header and data
 disp('Reading P-file...');
@@ -21,46 +21,44 @@ byte_order = 'ieee-le'; % Assume little endian format
 undo_loopfactor = 0;    % No need to undo loopfactor, they are in order the same way the trajectories are
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
 % pfile_name   = filepath('C:\Users\ScottHaileRobertson\Documents\MATLAB_libs\Datasets\Pfiles\P08192.7_lung_goldStd');
-pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\PfileBackup\Pfiles\2011_07_18_13_24_20_SUBJECT_002-0015\2011_07_18_13_56_05_Xe enr rad D12\P08704.7')
+pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\IQoptimization\traj\P20992.7')
 % pfile_name = 'C:\Users\ScottHaileRobertson\Desktop\P15872.7';
-header = ge_read_header(pfile_name, hdr_off, byte_order);
+% header = ge_read_header(pfile_name,15, hdr_off, byte_order);
+% 
+% recon_data = Recon_Data();
+% recon_data = recon_data.readPfileData(pfile_name,byte_order, precision,header);
+% recon_data = recon_data.removeBaselines(header);
 
-recon_data = Recon_Data();
-recon_data = recon_data.readPfileData(pfile_name,byte_order, precision,header);
-recon_data = recon_data.removeBaselines(header);
+[data, traj, weights, header] = GE_Recon_Prep(pfile_name, floor(15), pfile_name);
 
-rad_traj  = calc_radial_traj_distance(header);
-recon_data.Traj = calc_archimedian_spiral_trajectories(...
-    recon_data.Nframes, header.rdb.rdb_hdr_user23, ...
-    rad_traj);
 
 % Typical Recon Params
 kernel_width   = 1;
-overgridfactor = 4;
-kernel_lut_size = 5000;
+overgridfactor = 2;
+kernel_lut_size = 2000;
+header = header.ge_header;
 num_points   = header.rdb.rdb_hdr_frame_size;
-scale = 1.7;
+scale = 1;
 output_dims  = uint32(round(scale*[num_points num_points num_points]));
-
-% Filter Params
-fermi_scale    = 25;
-fermi_width    = 0.72;
 
 % Calculate DCF - you only need to do this once, then you
 % can reuse it as long as your trajectories are the same.
 disp('Calculating DCF...');
-dcf_type = 2; % 1=Analytical, 2=Hitplane, 3=Voronoi, 4=Itterative, 5=Voronoi+Itterative
+dcf_type = 4; % 1=Analytical, 2=Hitplane, 3=Voronoi, 4=Itterative, 5=Voronoi+Itterative
 im_sz_dcf = double(round(scale*num_points));
-numIter = 15;
+numIter = 25;
 saveDCF_dir = '../DCF/precalcDCFvals/';
-dcf = calculateDCF(recon_data, header, dcf_type, overgridfactor, ...
-    kernel_width, output_dims, im_sz_dcf, numIter,saveDCF_dir);
+traj = 0.5*traj';
+ dcf = calcDCF_Itterative(traj, overgridfactor,im_sz_dcf,numIter);
+
+% dcf = calculateDCF(recon_data, header, dcf_type, overgridfactor, ...
+%     kernel_width, output_dims, im_sz_dcf, numIter,saveDCF_dir);
 clear dcf_type im_sz_dcf numIter saveDCF_dir;
 
 % Apply DCF to data
-recon_data.Data = [real(recon_data.Data(:))';
-                   -imag(recon_data.Data(:))'];
-% recon_data.Data = recon_data.Data.*repmat(dcf,[2 1]);
+data = [real(data)';
+                   -imag(data)'];
+data = data.*repmat(dcf,[2 1]);
 % clear dcf;
 
 %Calculate Gridding Kernel
@@ -70,24 +68,13 @@ kernel_width = kernel_width*overgridfactor; % Account overgridding
     kernel_lut_size);
 clear kernel_lut_size;
 
-% OPTIONAL Create fermi filter
-disp('Calculating filter...');
-filter = FermiFilterGenerator(overgridfactor*output_dims,fermi_scale,fermi_width);
-% filter = [];
-
 %Regrid the fids
 disp('Gridding...');
-kspace_vol = grid_conv_mex(recon_data.Data, recon_data.Traj, ...
+kspace_vol = grid_conv_mex(data, traj, ...
     kernel_width, kernel_vals, overgridfactor*output_dims);
 
-sz_ = size(kspace_vol);
-kspace_vol = reshape(kspace_vol(:).*dcf(:),sz_); 
-
-% Apply Fermi filter
-if(~isempty(filter))
-    disp('Filtering...');
-    kspace_vol = kspace_vol .* filter;
-end
+% sz_ = size(kspace_vol);
+% kspace_vol = reshape(kspace_vol(:).*dcf(:),sz_); 
 
 % Calculate IFFT to get image volume
 disp('Calculating IFFT...');
@@ -97,35 +84,14 @@ kspace_vol = ifftn(kspace_vol);
 kspace_vol = fftshift(kspace_vol);
 
 % Crop out center of image to compensate for overgridding
-disp('Cropping out overgridding...');
-last = (overgridfactor-1)*output_dims/2;
-image_vol = kspace_vol(last(1)+1:last(1)+output_dims(1), ...
-    last(2)+1:last(2)+output_dims(2), ...
-    last(3)+1:last(3)+output_dims(3));
-clear kspace_vol last output_dims overgridfactor;
+% disp('Cropping out overgridding...');
+% last = (overgridfactor-1)*output_dims/2;
+% image_vol = kspace_vol(last(1)+1:last(1)+output_dims(1), ...
+%     last(2)+1:last(2)+output_dims(2), ...
+%     last(3)+1:last(3)+output_dims(3));
+% clear kspace_vol last output_dims overgridfactor;
 
 % Show the volume
 figure();
-imslice(real(image_vol),'Magnitude Image Volume');
+imslice(abs(kspace_vol),'Magnitude Image Volume');
 
-% bin_mask = image_vol>0.0009;
-% bin_mask = bwareaopen(bin_mask, 10,4);
-% 
-% % Show the volume
-% figure();
-% showSlices(bin_mask,'Magnitude Image Volume');
-% 
-% % Display the image volume
-% figure();
-% showSlices(angle(image_vol).*bin_mask,'Magnitude Image Volume');
-
-% kernel_width = 4;
-% intensity_sigma = 0.0003;
-% spatial_sigma = 1.5;
-% itter = 1;
-% for i=1:itter
-%     iteration = i
-%     b = BF_3D(abs(image_vol),kernel_width,intensity_sigma,spatial_sigma);
-% end
-% figure();
-% imslice(abs(b));

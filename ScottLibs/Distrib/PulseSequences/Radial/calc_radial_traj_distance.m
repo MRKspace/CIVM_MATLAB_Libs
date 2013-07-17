@@ -3,6 +3,8 @@
 %   defined by the scan parmeters (receiver BW, t_off, tramp, npts, etc).
 %   Returns the radial distances, as well as the gradients, and ideal 
 %   radial distances (distance assuming gradients turn on instantaneously).
+%
+%   Scale 0 to 1
 %   
 %   This code should exactly duplicate the trajectories calculated by
 %   radish, allowing for a fair comparison of the two reconstructions. The
@@ -18,14 +20,17 @@ function [rad_dist, gradient_dist, ideal_dist] = calc_radial_traj_distance(heade
 % Pull relevant info from header
 bw = header.rdb.rdb_hdr_user12;                 % Receiver bandwidth
 grad_delay_time = header.rdb.rdb_hdr_user22;    % Time between ADC on and start of gradient ramp
-% grad_delay_time = 0.1; %header.rdb.rdb_hdr_user22;    % Time between ADC on and start of gradient ramp
-% grad_delay_time = 0.06; %header.rdb.rdb_hdr_user22;    % Time between ADC on and start of gradient ramp
-% grad_delay_time = 0.132; % Shivs magic number that I dont understand
 ramp_time = header.rdb.rdb_hdr_user1;           % Time to ramp gradients
 npts = header.rdb.rdb_hdr_frame_size;           % Number of sample points per frame/ray
 
 delta_t = 1/(2*bw);                                             % Time between each sample
 total_t = npts * delta_t;                                       % Total time per ray
+
+% If NUFFT, add 1.5 extra dwell points to toff due to pulse sequence fix
+% for mandy's recon
+if(header.rdb.rdb_hdr_user21 == 1400)
+    grad_delay_time = grad_delay_time + 1.5*delta_t;
+end
 
 % Put everything in pixel units rather than time
 grad_delay_time = npts*grad_delay_time/total_t;

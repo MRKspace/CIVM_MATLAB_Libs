@@ -1,4 +1,4 @@
-function [revision, logo] = ge_read_rdb_rev_and_logo(pfile_name,hdr_off, byte_order)
+function [revision, logo] = ge_read_basic_header(pfile_name,hdr_off, byte_order)
 
 if(nargin < 1)
     [file, path] = uigetfile('*.*', 'Select Pfile');

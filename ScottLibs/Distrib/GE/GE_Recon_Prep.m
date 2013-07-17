@@ -1,4 +1,4 @@
-function [data, traj, header] = GE_Recon_Prep(pfile_name, revision, rp_filename, offset, byte_order, precision)
+function [data, traj, weights, header] = GE_Recon_Prep(pfile_name, revision, rp_filename, offset, byte_order, precision)
 
 if(nargin < 5)
     %Typically there is no offset to the header
@@ -51,7 +51,7 @@ if(~isempty(strfind(psdname,'3dradial')))
         data(:, 1:skip_frames:nframes) = []; % Remove baselines (junk views)
         nframes  = length(data(:))/npts;
     end
-    data = data(:);
+    header.ge_header.rdb.rdb_hdr_user20 = nframes;
     
     % Calculate trajectories
     rad_traj  = calc_radial_traj_distance(header.ge_header);
@@ -59,6 +59,35 @@ if(~isempty(strfind(psdname,'3dradial')))
     frameSize = header.ge_header.rdb.rdb_hdr_frame_size;
     header.MatrixSize = [frameSize frameSize frameSize];
     traj = calc_archimedian_spiral_trajectories(nframes, primeplus, rad_traj)';
+    
+%     offset = round(11 * (1000000/header.ge_header.image.tr));
+    
+
+     % Undo loopfactor from data and trajectories 
+     % (not necessary, but nice if you want to plot fids)
+    loop_factor = header.ge_header.rdb.rdb_hdr_user10; 
+	old_idx = 1:nframes;
+    new_idx = mod((old_idx-1)*loop_factor,nframes)+1;
+    data(:,old_idx) = data(:,new_idx);
+    traj = reshape(traj, [npts, nframes 3]);
+    traj(:,old_idx, :) = traj(:,new_idx,:);
+%     traj=traj(:,offset+[1:1500],:);% Throw away points
+    traj = reshape(traj,[npts*nframes 3]);
+	clear old_idx new_idx;
+    
+    % Calculate weights based on RF decay
+    n_dc_points = sum(rad_traj==0);
+    weights = repmat(abs(mean(data(1:n_dc_points,:))),[npts 1]);
+    weights = weights/max(weights(:));
+
+%     weights=weights(:,offset+[1:1500]);% Throw away points
+%     data=data(:,offset+[1:1500]);% Throw away points
+
+    min_weight = min(weights(:))
+    max_weight = max(weights(:))
+        
+    data = data(:);
+    weights = weights(:);
 elseif(any(strfind(psdname,'2dradial')))
     error('Cant handle 2dradial yet.');
 else
