@@ -1,14 +1,15 @@
 % Start with a clean slate
 clc; clear all; close all;
 
-options.headerfilename = filepath('C:\Users\ScottHaileRobertson\Desktop\IQoptimization\traj\P20992.7');
+options.headerfilename = filepath();
 % options.datafilename = filepath();
 options.datafilename = '';
 options.overgridfactor = 2;
-options.nNeighbors = 10;
-options.scale = 1;
+options.nNeighbors = 3;
+options.scale = 4;
 options.dcf_iter = 25;
-
+options.exact = 1; % CAUTION - this will make recon EXTREMELY slow!
+options.exact_dct_iter = 0;
 
 tic;
 [recon_vol, header, reconObj] = Recon_Noncartesian(options);

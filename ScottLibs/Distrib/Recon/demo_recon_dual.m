@@ -1,5 +1,5 @@
 % Start with a clean slate
-clc; clear all; close all;
+% clc; clear all; close all;
 
 % Parameters that almost never change.
 hdr_off    = 0;         % Typically there is no offset to the header
@@ -11,8 +11,10 @@ options.headerfilename = filepath();
 options.datafilename = '';
 options.overgridfactor = 2;
 options.nNeighbors = 3;
-options.scale = 4;
+options.scale = 1;
 options.dcf_iter = 25;
+options.exact = 0; % CAUTION - this will make recon EXTREMELY slow!
+options.exact_dct_iter = 0;
 
 % Read header
 header = ge_read_header(options.headerfilename, hdr_off, byte_order);
@@ -63,23 +65,8 @@ traj(:,old_idx, :) = traj(:,new_idx,:);
 % traj = reshape(traj,[npts*nframes 3]);
 clear old_idx new_idx;
 
-% % Temporally recon the data
-% start_frame = 1;
-% nframes_ = 200;
-% dissolved_fid_data = dissolved_fid_data(:,start_frame:(start_frame+nframes_ - 1));
-% gas_fid_data = gas_fid_data(:,start_frame:(start_frame+nframes_ - 1));
-% traj = traj(:,start_frame:(start_frame+nframes_ - 1),:);
-% traj = reshape(traj,[nframes_*npts 3]);
-% 
-% % Show sampling
-% figure();
-% plot3(traj(:,1),traj(:,2),traj(:,3),'.b');
-% hold on;
-% plot3(traj(:,1),traj(:,2),traj(:,3),':r');
-% hold off;
-
 % Override trajectories
-options.traj = traj(:,1:3);
+options.traj = reshape(traj,[npts*nframes 3]);
 
 tic;
 % Reconstruct gas phase data
@@ -87,7 +74,7 @@ options.data = gas_fid_data(:);
 [recon_gas, header, reconObj] = Recon_Noncartesian(options);
 
 % Filter
-% recon_vol = FermiFilter(recon_gas,0.1/options.scale, 1.2/options.scale);
+% recon_gas = FermiFilter(recon_gas,0.1/options.scale, 0.85/options.scale);
 
 %Show output
 figure();
@@ -107,7 +94,7 @@ options.data = dissolved_fid_data(:);
 recon_time = toc
 
 % Filter
-% recon_vol = FermiFilter(recon_dissolved,0.1/options.scale, 1.2/options.scale);
+% recon_dissolved = FermiFilter(recon_dissolved,0.1/options.scale, 0.85/options.scale);
 
 %Show output
 figure();
