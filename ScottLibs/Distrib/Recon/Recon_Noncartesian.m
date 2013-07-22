@@ -75,7 +75,7 @@ end
 % reasonably well.
 needsreconObjConstruction = 1;
 if(isfield(options, 'reconObj'))
-    if(options.exact & options.reconObj.G.arg.exact)
+    if(isfield(options, 'exact') & options.exact & options.reconObj.G.arg.exact)
         N = floor(options.scale*header.MatrixSize);
         
         if(N ~=options.reconObj.G.Nd)
@@ -86,7 +86,7 @@ if(isfield(options, 'reconObj'))
             error('Trajectory values are different between data and reconObj');
         end
         needsreconObjConstruction = 0;
-    elseif(~options.exact & ~options.reconObj.G.arg.exact)
+    elseif(~isfield(options, 'exact') || (~options.exact & ~options.reconObj.G.arg.exact))
         N = floor(options.scale*header.MatrixSize)
         2*round((N-1)/2)+1; % Make sure N is even
         J = [options.nNeighbors options.nNeighbors options.nNeighbors];
@@ -160,25 +160,36 @@ if(needsreconObjConstruction)
         
         if(options.exact_dct_iter > 0)
             disp('Itteratively calculating DCF for exact FFT...');
+            start_t = toc;
             for iter = 1:options.exact_dct_iter
                 disp(['   Iteration:' num2str(iter)]);
                 
                 reconObj.wt.pipe = abs(reconObj.wt.pipe ./ ...
                     (reconObj.G * (reconObj.G'*reconObj.wt.pipe)));
+                
+                
+                disp(['Calculated itter ' num2str(iter) ' in ' ...
+                    num2str(toc-start_t) ' seconds.']);
             end
-            disp('Finished calculating DCF.');
+            disp(['Finished calculating DCF.']);
         end
     end
     
     options.reconObj = reconObj;
 end
 
+%% Calculate RF Decay weighting and DC amplification
+% dc_amp = 1./weights;
+% weights = sqrt(weights);
+% rf_weights = abs(weights ./ ((options.reconObj.G.arg.Gnufft.arg.st.p * (options.reconObj.G.arg.Gnufft.arg.st.p'*(weights.*options.reconObj.wt.pipe)))));
+% rf_weights = rf_weights/max(rf_weights(:));
+
 %% Reconstruct image
 disp('Reconstructing data...');
 % Uses exp_xform_mex.c if exact recon
-tic;
 recon_vol = reshape(options.reconObj.G' * ...
-    (options.reconObj.wt.pipe .* data(:) ),options.reconObj.G.idim);
+    (options.reconObj.wt.pipe .* data(:))...
+    ,options.reconObj.G.idim);
 
 % % Overgridded fft image
 % recon_vol2 = fftshift(reshape(options.reconObj.G.arg.Gnufft.arg.st.p' * ...

@@ -38,7 +38,7 @@ disp(['Found ' num2str(length(pfiles)) ' Radial Pfiles.']);
         hdr_off    = 0;         % Typically there is no offset to the header
         byte_order = 'ieee-le'; % Assume little endian format
         precision='int16';      % Can we read this from header? CSI extended mode uses int32
-        revision = 11;
+        revision = 15;
         
         %Read header and unique series identifier
         header = ge_read_header(pfilename, revision, hdr_off, byte_order);

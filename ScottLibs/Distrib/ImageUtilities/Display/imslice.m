@@ -243,7 +243,7 @@ guidata(figure_handle,h);
         dim = get(h.dimension_selection, 'Value');
         maxVal = h.vol.Dims(dim);
         curVal = h.default_scroll_vals(dim);
-        stepVal = [1 min(round(maxVal/4),20)]/(maxVal-1);
+        stepVal = [1 min(round(maxVal/4),20)]/max((maxVal-1),1);
         set(h.slice_slider,'Max',maxVal,'Min',1,'Value',curVal,'SliderStep',stepVal);
     end
 

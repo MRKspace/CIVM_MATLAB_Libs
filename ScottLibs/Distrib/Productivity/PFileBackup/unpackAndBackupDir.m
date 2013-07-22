@@ -1,13 +1,32 @@
-function unpackAndBackupDir(dir_to_backup, tmp_import_dir, organized_dir)
-if(isempty(dir_to_backup))
+function unpackAndBackupDir(varargin)
+needs_backupdir = 1;
+needs_tmpdir = 1;
+needs_organizeddir = 1;
+
+if(nargin>0)
+    dir_to_backup = varargin{1};
+    needs_backupdir = ~exist(dir_to_backup);
+    
+    if(nargin > 1)
+        tmp_import_dir = varargin{2};
+        needs_tmpdir = ~exist(tmp_import_dir);
+        
+        if(nargin > 2)
+            organized_dir = varargin{3};
+            needs_organizeddir = ~exist(organized_dir);
+        end
+    end
+end
+
+if(needs_backupdir)
     dir_to_backup = uigetdir('.','Select directory to backup')
 end
 
-if(isempty(tmp_import_dir))
+if(needs_tmpdir)
     tmp_import_dir = uigetdir('.','Select temporary import dir')
 end
 
-if(isempty(organized_dir))
+if(needs_organizeddir)
     organized_dir = uigetdir('.','Select organized dir')
 end
 

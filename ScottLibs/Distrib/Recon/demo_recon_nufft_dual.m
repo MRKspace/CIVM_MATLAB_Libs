@@ -1,5 +1,5 @@
 % Start with a clean slate
-% clc; clear all; close all;
+clc; clear all; close all;
 
 % Parameters that almost never change.
 hdr_off    = 0;         % Typically there is no offset to the header
@@ -7,11 +7,11 @@ byte_order = 'ieee-le'; % Assume little endian format
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
 
 % Reconstruction options
-options.headerfilename = filepath();
+options.headerfilename = filepath('C:\Users\ScottHaileRobertson\Desktop\ILD_Scans\07_15_2013\pfiles\P03584.7');
 options.datafilename = '';
 options.overgridfactor = 2;
 options.nNeighbors = 3;
-options.scale = 1;
+options.scale = 2;
 options.dcf_iter = 25;
 options.exact = 0; % CAUTION - this will make recon EXTREMELY slow!
 options.exact_dct_iter = 0;
@@ -65,12 +65,40 @@ traj(:,old_idx, :) = traj(:,new_idx,:);
 % traj = reshape(traj,[npts*nframes 3]);
 clear old_idx new_idx;
 
+% Calculate weights based on RF decay
+n_dc_points = sum(rad_traj==0);
+gas_weights = repmat(abs(mean(gas_fid_data(1:n_dc_points,:))),[npts 1]);
+gas_weights = gas_weights/max(gas_weights(:));
+dissolved_weights = repmat(abs(mean(dissolved_fid_data(1:n_dc_points,:))),[npts 1]);
+dissolved_weights = dissolved_weights/max(dissolved_weights(:));
+
+min_gas_weight = min(gas_weights(:))
+max_gas_weight = max(gas_weights(:))
+min_dissolved_weight = min(dissolved_weights(:))
+max_dissolved_weight = max(dissolved_weights(:))
+
+% % Temporally recon the data
+% start_frame = 1;
+% nframes_ = 200;
+% dissolved_fid_data = dissolved_fid_data(:,start_frame:(start_frame+nframes_ - 1));
+% gas_fid_data = gas_fid_data(:,start_frame:(start_frame+nframes_ - 1));
+% traj = traj(:,start_frame:(start_frame+nframes_ - 1),:);
+% traj = reshape(traj,[nframes_*npts 3]);
+% 
+% % Show sampling
+% figure();
+% plot3(traj(:,1),traj(:,2),traj(:,3),'.b');
+% hold on;
+% plot3(traj(:,1),traj(:,2),traj(:,3),':r');
+% hold off;
+
 % Override trajectories
 options.traj = reshape(traj,[npts*nframes 3]);
 
 tic;
 % Reconstruct gas phase data
 options.data = gas_fid_data(:);
+% options.weights = reshape(gas_weights,[npts*nframes 1]);
 [recon_gas, header, reconObj] = Recon_Noncartesian(options);
 
 % Filter
@@ -90,11 +118,13 @@ options.reconObj = reconObj;
 
 % Reconstruct dissolved phase data
 options.data = dissolved_fid_data(:);
+% options.weights = reshape(dissolved_weights,[npts*nframes 1]);
+tic;
 [recon_dissolved, header, reconObj] = Recon_Noncartesian(options);
 recon_time = toc
 
 % Filter
-% recon_dissolved = FermiFilter(recon_dissolved,0.1/options.scale, 0.85/options.scale);
+recon_dissolved = FermiFilter(recon_dissolved,0.1/options.scale, 0.85/options.scale);
 
 %Show output
 figure();

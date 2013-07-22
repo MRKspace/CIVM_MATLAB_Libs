@@ -6,9 +6,9 @@ options.headerfilename = filepath();
 options.datafilename = '';
 options.overgridfactor = 2;
 options.nNeighbors = 3;
-options.scale = 4;
+options.scale = 1;
 options.dcf_iter = 25;
-options.exact = 1; % CAUTION - this will make recon EXTREMELY slow!
+options.exact = 0; % CAUTION - this will make recon EXTREMELY slow!
 options.exact_dct_iter = 0;
 
 tic;
@@ -16,7 +16,7 @@ tic;
 initial_recon_time = toc
 
 % Filter
-% recon_vol = FermiFilter(recon_vol,0.1/options.scale, 1.2/options.scale);
+% recon_vol = FermiFilter(recon_vol,0.1/options.scale, 0.85/options.scale);
 
 %Show output
 figure();

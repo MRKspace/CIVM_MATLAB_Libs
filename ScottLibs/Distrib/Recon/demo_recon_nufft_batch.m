@@ -12,8 +12,8 @@ clc; clear all; close all;
 options.datafilename = '';
 options.overgridfactor = 2;
 options.nNeighbors = 3;
-options.scale = 2;
-options.dcf_iter = 25
+options.scale = 1;
+options.dcf_iter = 1
    
 % Get a list of all the files to be reconstructed
 files_to_recon = demo_findRadialPFiles();
@@ -25,13 +25,8 @@ options.headerfilename = filepath(files_to_recon{1});
 disp(['Reconstructed file 1 in ' num2str(toc) ' seconds.']);
 
 % Save the reconstruction of the first file
-descr = ['Pfile:' files_to_recon{1} ...
-    ', overgrid:' num2str(options.overgridfactor) ...
-    ', nNeighbots:' num2str(options.nNeighbors) ...
-    ', scale:' num2str(scale) ...
-    ', dcf_iter:' num2str(options.dcf_iter)];
-nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32, descr);
-save_nii(make_nii(abs(recon_vol)),[files_to_recon{1} '_recon_mag.nii'],32);
+nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32);
+save_nii(make_nii(abs(recon_vol)),[files_to_recon{1} '_recon.nii'],32);
 
 % Now add the reconObject and run the recon for the other files - this 
 % additional reconstructions will be faster because we don't have to 
@@ -51,13 +46,8 @@ for i=2:numFilesToRecon
     [recon_vol, header, reconObj] = Recon_Noncartesian(options);
     disp(['Reconstructed file ' num2str(i) ' in ' num2str(toc) ' seconds.']);
     
-    % Save the reconstruction of the first file
-    descr = ['Pfile:' files_to_recon{1} ...
-    ', overgrid:' num2str(options.overgridfactor) ...
-    ', nNeighbots:' num2str(options.nNeighbors) ...
-    ', scale:' num2str(scale) ...
-    ', dcf_iter:' num2str(options.dcf_iter)];
-    nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32, descr);
+    % Save the reconstruction of the file
+    nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32);
     save_nii(nii,[files_to_recon{1} '_recon_mag.nii'],32);
 end
 

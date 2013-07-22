@@ -4,7 +4,6 @@ function backupPfiles(import_dir, organized_dir)
 
 %Find all the files in backup_dir for backup
 files_to_backup = ls([import_dir filesep() 'P*.7']);
-files_to_backup = files_to_backup(3:end,:);
 if(length(files_to_backup)<1)
     return;
 end
@@ -12,7 +11,7 @@ end
 % Read in every pfile
 num_pfiles = size(files_to_backup,1);
 for(i=1:num_pfiles)
-    pfilename = [import_dir files_to_backup(i,:)];
+    pfilename = [import_dir filesep() files_to_backup(i,:)];
     if(~exist(pfilename))
         errormsg(['Pfile (' pfilename ') does not exist.']);
     end
@@ -45,7 +44,7 @@ for(i=1:num_pfiles)
     end
     
     %Move pfile to series directory
-    pfile = [import_dir  files_to_backup(i,:)];
+    pfile = [import_dir filesep() files_to_backup(i,:)];
     movefile(pfile,series_dir_name,'f');
     newFilePath = [series_dir_name filesep() files_to_backup(i,:)];
     system(['touch -t ' series_timestamp ' ' char(39) newFilePath char(39)]);

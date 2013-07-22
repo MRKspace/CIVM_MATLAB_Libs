@@ -49,7 +49,7 @@ classdef statsRoi < imroi
                         error('Shape not supported. Supported shapes: rect, ellipse, poly, freehand.');
                 end
             else
-                roi = imrect(varargin);
+                roi = imrect(gca());
             end
             
             % Create container object

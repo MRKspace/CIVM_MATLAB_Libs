@@ -21,7 +21,7 @@ byte_order = 'ieee-le'; % Assume little endian format
 undo_loopfactor = 0;    % No need to undo loopfactor, they are in order the same way the trajectories are
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
 % pfile_name   = filepath('C:\Users\ScottHaileRobertson\Documents\MATLAB_libs\Datasets\Pfiles\P08192.7_lung_goldStd');
-pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\IQoptimization\traj\P20992.7')
+pfile_name   = filepath()
 % pfile_name = 'C:\Users\ScottHaileRobertson\Desktop\P15872.7';
 % header = ge_read_header(pfile_name,15, hdr_off, byte_order);
 % 
