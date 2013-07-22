@@ -7,7 +7,7 @@ byte_order = 'ieee-le'; % Assume little endian format
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
 
 % Reconstruction options
-options.headerfilename = filepath('C:\Users\ScottHaileRobertson\Desktop\ILD_Scans\07_15_2013\pfiles\P03584.7');
+options.headerfilename = filepath();
 options.datafilename = '';
 options.overgridfactor = 2;
 options.nNeighbors = 3;

@@ -33,7 +33,7 @@ if(header.rdb.rdb_hdr_user21 == 1400)
 end
 
 % Shivs magic number... no clue why
-grad_delay_time = 0.132;
+% grad_delay_time = 0.132;
 
 % Put everything in pixel units rather than time
 grad_delay_time = npts*grad_delay_time/total_t;

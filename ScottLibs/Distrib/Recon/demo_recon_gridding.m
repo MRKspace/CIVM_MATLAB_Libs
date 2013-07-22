@@ -20,21 +20,13 @@ hdr_off    = 0;         % Typically there is no offset to the header
 byte_order = 'ieee-le'; % Assume little endian format
 undo_loopfactor = 0;    % No need to undo loopfactor, they are in order the same way the trajectories are
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
-% pfile_name   = filepath('C:\Users\ScottHaileRobertson\Documents\MATLAB_libs\Datasets\Pfiles\P08192.7_lung_goldStd');
 pfile_name   = filepath()
-% pfile_name = 'C:\Users\ScottHaileRobertson\Desktop\P15872.7';
-% header = ge_read_header(pfile_name,15, hdr_off, byte_order);
-% 
-% recon_data = Recon_Data();
-% recon_data = recon_data.readPfileData(pfile_name,byte_order, precision,header);
-% recon_data = recon_data.removeBaselines(header);
 
 [data, traj, weights, header] = GE_Recon_Prep(pfile_name, floor(15), pfile_name);
 
-
 % Typical Recon Params
 kernel_width   = 1;
-overgridfactor = 2;
+overgridfactor = 3;
 kernel_lut_size = 2000;
 header = header.ge_header;
 num_points   = header.rdb.rdb_hdr_frame_size;
@@ -46,7 +38,7 @@ output_dims  = uint32(round(scale*[num_points num_points num_points]));
 disp('Calculating DCF...');
 dcf_type = 4; % 1=Analytical, 2=Hitplane, 3=Voronoi, 4=Itterative, 5=Voronoi+Itterative
 im_sz_dcf = double(round(scale*num_points));
-numIter = 25;
+numIter = 5;
 saveDCF_dir = '../DCF/precalcDCFvals/';
 traj = 0.5*traj';
  dcf = calcDCF_Itterative(traj, overgridfactor,im_sz_dcf,numIter);
