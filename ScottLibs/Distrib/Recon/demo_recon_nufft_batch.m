@@ -26,7 +26,7 @@ disp(['Reconstructed file 1 in ' num2str(toc) ' seconds.']);
 
 % Save the reconstruction of the first file
 nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32);
-save_nii(make_nii(abs(recon_vol)),[files_to_recon{1} '_recon.nii'],32);
+save_nii(nii,[files_to_recon{1} '_recon.nii'],16);
 
 % Now add the reconObject and run the recon for the other files - this 
 % additional reconstructions will be faster because we don't have to 
@@ -48,6 +48,6 @@ for i=2:numFilesToRecon
     
     % Save the reconstruction of the file
     nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32);
-    save_nii(nii,[files_to_recon{1} '_recon_mag.nii'],32);
+    save_nii(nii,[files_to_recon{1} '_recon_mag.nii'],16);
 end
 

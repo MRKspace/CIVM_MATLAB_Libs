@@ -10,9 +10,10 @@
 % clc; clear all; close all;
 
 % % Recompile because its easy to forget...
-% mex -g grid_conv_mex.c;
-% mex -g ../DCF/sdc3_MAT.c;
-% mex -g ../DCF/dcf_hitplane_mex.c;
+disp('Compiling gridding code. You should only need to do this once, or when the code changes.');
+mex -g ./Gridding/grid_conv_mex.c;
+mex -g ./DCF/sdc3_MAT.c;
+mex -g ./DCF/dcf_hitplane_mex.c;
 
 % Read P-File header and data
 disp('Reading P-file...');
@@ -22,7 +23,8 @@ undo_loopfactor = 0;    % No need to undo loopfactor, they are in order the same
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
 pfile_name   = filepath()
 
-[data, traj, weights, header] = GE_Recon_Prep(pfile_name, floor(15), pfile_name);
+[revision, logo] = ge_read_rdb_rev_and_logo(pfile_name);
+[data, traj, weights, header] = GE_Recon_Prep(pfile_name, floor(revision),'');
 
 % Typical Recon Params
 kernel_width   = 1;
@@ -38,9 +40,17 @@ output_dims  = uint32(round(scale*[num_points num_points num_points]));
 disp('Calculating DCF...');
 dcf_type = 4; % 1=Analytical, 2=Hitplane, 3=Voronoi, 4=Itterative, 5=Voronoi+Itterative
 im_sz_dcf = double(round(scale*num_points));
-numIter = 5;
+numIter = 25;
 saveDCF_dir = '../DCF/precalcDCFvals/';
-traj = 0.5*traj';
+traj = traj'/scale;
+while(any(traj(:)>0.5))
+    addIdx = traj(:)>0.5;
+    traj(addIdx) = traj(addIdx) - 1;
+end
+while(any(traj(:)<-0.5))
+    subIdx = traj(:)<-0.5;
+    traj(subIdx) = traj(subIdx) + 1;
+end
  dcf = calcDCF_Itterative(traj, overgridfactor,im_sz_dcf,numIter);
 
 % dcf = calculateDCF(recon_data, header, dcf_type, overgridfactor, ...
@@ -77,13 +87,16 @@ kspace_vol = fftshift(kspace_vol);
 
 % Crop out center of image to compensate for overgridding
 % disp('Cropping out overgridding...');
-% last = (overgridfactor-1)*output_dims/2;
-% image_vol = kspace_vol(last(1)+1:last(1)+output_dims(1), ...
-%     last(2)+1:last(2)+output_dims(2), ...
-%     last(3)+1:last(3)+output_dims(3));
-% clear kspace_vol last output_dims overgridfactor;
+last = (overgridfactor-1)*output_dims/2;
+image_vol = kspace_vol(last(1)+1:last(1)+output_dims(1), ...
+    last(2)+1:last(2)+output_dims(2), ...
+    last(3)+1:last(3)+output_dims(3));
+clear kspace_vol last output_dims overgridfactor;
 
 % Show the volume
 figure();
-imslice(abs(kspace_vol),'Magnitude Image Volume');
+imslice(abs(image_vol),'Magnitude Image Volume');
 
+% Save gas volume
+nii = make_nii(abs(image_vol));
+save_nii(nii, 'recon_vol.nii', 16);

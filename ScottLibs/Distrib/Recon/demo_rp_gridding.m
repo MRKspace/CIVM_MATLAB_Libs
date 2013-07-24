@@ -20,18 +20,10 @@ hdr_off    = 0;         % Typically there is no offset to the header
 byte_order = 'ieee-le'; % Assume little endian format
 undo_loopfactor = 0;    % No need to undo loopfactor, they are in order the same way the trajectories are
 precision = 'int16';      % Can we read this from header? CSI extended mode uses int32
-% pfile_name   = filepath('C:\Users\ScottHaileRobertson\Documents\MATLAB_libs\Datasets\Pfiles\P08192.7_lung_goldStd');
-% pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\JohnPfiles\T33768.work\P09728.7')
-pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\JohnPfiles\T33776.work\P16384.7')
-% pfile_name = 'C:\Users\ScottHaileRobertson\Desktop\P15872.7';
+pfile_name   = filepath()
 header = ge_read_header(pfile_name, hdr_off, byte_order);
 
-% pfile_name = 'C:\Users\ScottHaileRobertson\Desktop\water_ideal.rp';
-% pfile_name = 'C:\Users\ScottHaileRobertson\Desktop\cyclo_ideal.rp';
-% pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\JohnPfiles\T33768A.work\T33768A.rp')
-% pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\JohnPfiles\T33768B.work\T33768B.rp')
-% pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\JohnPfiles\T33776A.work\T33776A.rp')
-pfile_name   = filepath('C:\Users\ScottHaileRobertson\Desktop\JohnPfiles\T33776B.work\T33776B.rp')
+pfile_name   = filepath()
 
 recon_data = Recon_Data();
 recon_data = recon_data.readPfileData(pfile_name,byte_order, precision,header);
@@ -88,9 +80,6 @@ disp('Gridding...');
 kspace_vol = grid_conv_mex(recon_data.Data, recon_data.Traj, ...
     kernel_width, kernel_vals, overgridfactor*output_dims);
 
-% sz_ = size(kspace_vol);
-% kspace_vol = reshape(kspace_vol(:).*dcf(:),sz_); 
-
 % Apply Fermi filter
 if(~isempty(filter))
     disp('Filtering...');
@@ -116,13 +105,6 @@ clear kspace_vol last output_dims overgridfactor;
 figure();
 showSlices(abs(image_vol),'Magnitude Image Volume');
 
-% bin_mask = image_vol>0.0009;
-% bin_mask = bwareaopen(bin_mask, 10,4);
-% 
-% % Show the volume
-% figure();
-% showSlices(bin_mask,'Magnitude Image Volume');
-% 
-% % Display the image volume
-% figure();
-% showSlices(angle(image_vol).*bin_mask,'Magnitude Image Volume');
+% Save volume
+nii = make_nii(abs(image_vol));
+save_nii(nii, 'recon_vol.nii', 16);

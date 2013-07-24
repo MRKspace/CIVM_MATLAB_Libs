@@ -62,7 +62,6 @@ dissolved_fid_data(:,old_idx) = dissolved_fid_data(:,new_idx);
 gas_fid_data(:,old_idx) = gas_fid_data(:,new_idx);
 traj = reshape(traj, [npts, nframes 3]);
 traj(:,old_idx, :) = traj(:,new_idx,:);
-% traj = reshape(traj,[npts*nframes 3]);
 clear old_idx new_idx;
 
 % Calculate weights based on RF decay
@@ -77,21 +76,6 @@ max_gas_weight = max(gas_weights(:))
 min_dissolved_weight = min(dissolved_weights(:))
 max_dissolved_weight = max(dissolved_weights(:))
 
-% % Temporally recon the data
-% start_frame = 1;
-% nframes_ = 200;
-% dissolved_fid_data = dissolved_fid_data(:,start_frame:(start_frame+nframes_ - 1));
-% gas_fid_data = gas_fid_data(:,start_frame:(start_frame+nframes_ - 1));
-% traj = traj(:,start_frame:(start_frame+nframes_ - 1),:);
-% traj = reshape(traj,[nframes_*npts 3]);
-% 
-% % Show sampling
-% figure();
-% plot3(traj(:,1),traj(:,2),traj(:,3),'.b');
-% hold on;
-% plot3(traj(:,1),traj(:,2),traj(:,3),':r');
-% hold off;
-
 % Override trajectories
 options.traj = reshape(traj,[npts*nframes 3]);
 
@@ -102,7 +86,7 @@ options.data = gas_fid_data(:);
 [recon_gas, header, reconObj] = Recon_Noncartesian(options);
 
 % Filter
-% recon_gas = FermiFilter(recon_gas,0.1/options.scale, 0.85/options.scale);
+recon_gas = FermiFilter(recon_gas,0.1/options.scale, 0.85/options.scale);
 
 %Show output
 figure();
@@ -132,8 +116,8 @@ imslice(abs(recon_dissolved),'Dissolved Phase');
 
 % Save gas volume
 nii = make_nii(abs(recon_gas));
-save_nii(nii, 'gas.nii', 32);
+save_nii(nii, 'gas.nii', 16);
 
 % Save dissolved volume
 nii = make_nii(abs(recon_dissolved));
-save_nii(nii, 'dissolved.nii', 32);
+save_nii(nii, 'dissolved.nii', 16);

@@ -71,7 +71,6 @@ if(~isempty(strfind(psdname,'3dradial')))
     data(:,old_idx) = data(:,new_idx);
     traj = reshape(traj, [npts, nframes 3]);
     traj(:,old_idx, :) = traj(:,new_idx,:);
-%     traj=traj(:,offset+[1:1500],:);% Throw away points
     traj = reshape(traj,[npts*nframes 3]);
 	clear old_idx new_idx;
     
@@ -79,9 +78,6 @@ if(~isempty(strfind(psdname,'3dradial')))
     n_dc_points = sum(rad_traj==0);
     weights = repmat(abs(mean(data(1:n_dc_points,:))),[npts 1]);
     weights = weights/max(weights(:));
-
-%     weights=weights(:,offset+[1:1500]);% Throw away points
-%     data=data(:,offset+[1:1500]);% Throw away points
 
     min_weight = min(weights(:))
     max_weight = max(weights(:))
