@@ -247,19 +247,29 @@ out = mri_objects_image_cyl3(params, x,y,0);
 
 %
 % mri_objects_image_cyl3()
-% param: [N,6] [xcent ycent zcent rad zlen value]
+% param: [N,7] [xcent ycent zcent rad dim cyldim value]
 %
 function out = mri_objects_image_cyl3(params, x,y,z)
 out = 0;
-if ncol(params) ~= 6, fail('cyl3 requires 6 parameters'), end
+if ncol(params) ~= 7, fail('cyl3 requires 7 parameters'), end
 for ii=1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
 	yc = par(2);
 	zc = par(3);
 	rad = par(4);
-	len = par(5);
-	out = out + par(6) * ((x-xc).^2+(y-yc).^2 < rad^2) .* rect((z-zc)/len);
+    len = par(5);
+    cyldim = par(6);
+    switch cyldim
+        case 1
+            out = out + par(7) * ((y-yc).^2 + (z-zc).^2 < rad^2) .* rect((x-xc)/len);
+        case 2 
+            out = out + par(7) * ((x-xc).^2+(z-zc).^2 < rad^2) .* rect((y-yc)/len);
+        case 3
+            out = out + par(7) * ((x-xc).^2+(y-yc).^2 < rad^2) .* rect((z-zc)/len);
+        otherwise
+            error('cyldim must be either 1, 2, or 3 for (x, y, or z, respectively)');
+    end
 end
 
 
@@ -274,12 +284,12 @@ out = mri_objects_kspace_cyl3(params, u,v,0);
 
 %
 % mri_objects_kspace_cyl3()
-% param: [N,6] [xcent ycent zcent rad zlen value]
+% param: [N,6] [xcent ycent zcent rad depth cyldim value]
 % note: circ(r) = rect(r/2) <=> 4*jinc(2*q)
 %
 function out = mri_objects_kspace_cyl3(params, u,v,w)
 out = 0;
-if ncol(params) ~= 6, fail('cyl3 requires 6 parameters'), end
+if ncol(params) ~= 7, fail('cyl3 requires 7 parameters'), end
 for ii=1:nrow(params)
 	par = params(ii,:);
 	xc = par(1);
@@ -287,9 +297,23 @@ for ii=1:nrow(params)
 	zc = par(3);
 	rad = par(4);
 	len = par(5);
-	out = out + par(6) * rad^2 * 4*jinc(2*sqrt(u.^2+v.^2)*rad) ...
-		.* (len * nufft_sinc(w*len)) ...
-		.* exp(-2i*pi*(u*xc + v*yc + w*zc));
+    cyldim = par(6);
+    switch cyldim
+        case 1
+            out = out + par(7) * rad^2 * 4*jinc(2*sqrt(v.^2+w.^2)*rad) ...
+                .* (len * nufft_sinc(u*len)) ...
+                .* exp(-2i*pi*(u*xc + v*yc + w*zc));
+        case 2   
+            out = out + par(7) * rad^2 * 4*jinc(2*sqrt(u.^2+w.^2)*rad) ...
+                .* (len * nufft_sinc(v*len)) ...
+                .* exp(-2i*pi*(u*xc + v*yc + w*zc));
+        case 3
+            out = out + par(7) * rad^2 * 4*jinc(2*sqrt(u.^2+v.^2)*rad) ...
+                .* (len * nufft_sinc(w*len)) ...
+                .* exp(-2i*pi*(u*xc + v*yc + w*zc));
+        otherwise
+            error('cyldim must be either 1, 2, or 3 for (x, y, or z, respectively)');
+    end
 end
 
 
