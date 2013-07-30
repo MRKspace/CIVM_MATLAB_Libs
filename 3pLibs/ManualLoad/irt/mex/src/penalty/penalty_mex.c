@@ -1,7 +1,7 @@
 // penalty_mex.c
 // Matlab mex gateway routine for roughness penalty differencing routines
 // Copyright 2004-5-14, Jeff Fessler, University of Michigan
-#include "def,mexarg.h"
+#include "../def/def,mexarg.h"
 #include "defs-misc.h"
 
 #define Usage	"Usage: penalty_mex(?)\n"

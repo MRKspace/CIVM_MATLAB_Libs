@@ -6,7 +6,7 @@
 #ifndef DefMisc
 #define DefMisc
 
-#include "defs-env.h"
+#include "../def/defs-env.h"
 
 /* penalty,diff.c */
 #if 0

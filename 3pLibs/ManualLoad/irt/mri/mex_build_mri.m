@@ -9,3 +9,8 @@ cd(dir_mri)
 mex -g exp_xform_mex.c
 mex -g mri_exp_mult_mex.c
 cd(dir_current)
+
+
+cd('../mex/src');
+irt_mex_make();		% compile penalty_mex
+cd(dir_current)

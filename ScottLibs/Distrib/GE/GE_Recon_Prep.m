@@ -60,9 +60,6 @@ if(~isempty(strfind(psdname,'3dradial')))
     header.MatrixSize = [frameSize frameSize frameSize];
     traj = calc_archimedian_spiral_trajectories(nframes, primeplus, rad_traj)';
     
-%     offset = round(11 * (1000000/header.ge_header.image.tr));
-    
-
      % Undo loopfactor from data and trajectories 
      % (not necessary, but nice if you want to plot fids)
     loop_factor = header.ge_header.rdb.rdb_hdr_user10; 

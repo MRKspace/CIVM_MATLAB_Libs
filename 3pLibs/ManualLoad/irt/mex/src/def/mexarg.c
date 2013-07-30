@@ -132,13 +132,15 @@ sof mxu_arg(cint nmx, Const mxArray *pmx[])
 int mxu_numel(Cmx mx)
 {
 	int ndim;
-	Const mwSize *dims;
+	int numel;
+    int ii; // for cuda
+    Const mwSize *dims;
 
-	Call(ndim = mxGetNumberOfDimensions, (mx))
-	Call(dims = mxGetDimensions, (mx))
+	Call(ndim = mxGetNumberOfDimensions, (mx));
+	Call(dims = mxGetDimensions, (mx));
 
-	int numel = 1;
-	int ii; // for cuda
+	numel = 1;
+	
 	for (ii=0; ii < ndim; ++ii)
 		numel *= dims[ii];
 
