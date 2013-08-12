@@ -32,13 +32,12 @@ header.rdb.rdb_hdr_frame_size = 100;	% Number of sample points per frame/ray
 header.rdb.rdb_hdr_user21 = 1600;       % NUFFT=1400, Gridding=1600
 nframes = 4601;
 primeplus = 101;
-loop_factor = 1201;
-flip_angle = 1.531633603295065107;
+loop_factor = 1; % 1201 seems good
 
 % NUFFT Reconstruction options
 nNeighbors = 3;
 overgridfactor = 2;
-dcf_iter = 10;
+dcf_iter = 5;
 
 % Gridding reconstruction options
 overgridfactor_grid = 3;
@@ -474,13 +473,28 @@ disp('Creating image domain image');
 sz = header.rdb.rdb_hdr_frame_size*scale; % image matrix size
 lsp = linspace(-fov/2, fov/2,sz);
 [x y z] = meshgrid(lsp, lsp, lsp);
-% vol = phantom.image(x,y,z);
-% 
-% % Show phantom
-% figure();
-% imslice(vol,'Exact phantom');
+
+% Show phantom
+vol = phantom.image(x,y,z);
+figure();
+imslice(vol,'Exact phantom');
+
+% Make Cartesian sampled volume
+disp('Simulating Cartesian recon');
+u1d = [-sz/2:sz/2-1] / fov; 
+[u v w] = ndgrid(u1d, u1d, u1d);
+data_cartesian = reshape(phantom.kspace(u(:), v(:), w(:)) * ...
+    prod([sz sz sz]/fov),[sz sz sz]);
+ideal_im = fftshift(ifftn(fftshift(data_cartesian)));
+figure();
+imslice(abs(ideal_im));
+title('Ideal image');
+colormap(gray);
+colorbar();
+axis image;
 
 %% Get trajectories and corresponding k-space data
+disp('Getting trajectories');
 ending = ['_' num2str(header.rdb.rdb_hdr_user12) ...
     '_' num2str(header.rdb.rdb_hdr_user22) ...
     '_' num2str(header.rdb.rdb_hdr_user1) ...
@@ -494,6 +508,7 @@ ending = ['_' num2str(header.rdb.rdb_hdr_user12) ...
 data_filename = ['data' ending];
 traj_filename = ['traj' ending];
 if(exist(data_filename) && exist(traj_filename))
+    disp('Loading trajectories from file');
     load(data_filename);
     load(traj_filename);
 else
@@ -503,19 +518,20 @@ else
     [rad, gradient_dist, ideal_dist] = calc_radial_traj_distance(header);
     traj = calc_archimedian_spiral_trajectories(...
         nframes, primeplus, rad); %maybe mult by (sz/fov)
-%     traj = traj'*sz/(scale*fov);
     traj = traj';
     
     %% Calculate frequency data using exact fourier transform of object
     disp('Calculating kspace data');
-    data = phantom.kspace(traj(:,1),...
-        traj(:,2),...
-        traj(:,3));
+    traj_physical = traj*(sz/fov);  % put into physical units for sampling simulated object
+    data = phantom.kspace(traj_physical(:,1),...
+        traj_physical(:,2),...
+        traj_physical(:,3));
+    data = data * prod([sz sz sz]/fov);
+    
+    disp('Saving trajectories');
     save(data_filename,'data');
     save(traj_filename,'traj');
 end
-
-traj = traj/(sz/(2*scale*fov));
 
 %% Apply loopfactor
 old_idx = 1:nframes;
@@ -526,16 +542,19 @@ traj = reshape(traj, [header.rdb.rdb_hdr_frame_size nframes 3]);
 traj(:,old_idx, :) = traj(:,new_idx,:);
 traj = reshape(traj,[header.rdb.rdb_hdr_frame_size*nframes 3]);
 
+%% Calculate noise
+noise_pct = 0.01;
+noise = noise_pct*max(abs(data(:)))*(rand(size(data)) - 0.5);
+
 %% Apply simulated RF decay
 min_val = 0.3;
 flip_angle = acos(min_val^(1/(nframes-1)))
 decay_weight = cos(flip_angle).^([0:(nframes-1)]);
 decay_weight = repmat(decay_weight,[header.rdb.rdb_hdr_frame_size 1]);
 decay_weight = decay_weight(:);
-data = data(:).*decay_weight(:);
 
-% Add noise
-
+% Add noise and decay to signal
+data = data(:).*decay_weight(:) + noise(:);
 
 %% NUFFT Reconstruction
 % Calculate Sample Density Corrections
@@ -546,7 +565,7 @@ K = ceil(N*overgridfactor);
 mask = true(N);
 
 % optimize min-max error accross volume
-reconObj.G = Gmri(0.5*traj, mask, 'fov', N, 'nufft_args', {N,J,K,N/2,'minmax:kb'});
+reconObj.G = Gmri(traj, mask, 'fov', N, 'nufft_args', {N,J,K,N/2,'minmax:kb'});
 clear K J;
 
 disp('Itteratively calculating density compensation coefficients...');
@@ -562,14 +581,91 @@ for iter = 1:dcf_iter
         (reconObj.G.arg.Gnufft.arg.st.p'*(reconObj.wt.pipe)))));
 end
 
-% Reconstruct
-disp('Reconstructing data with NUFFT...');
-% Uses exp_xform_mex.c if exact recon
-recon_vol = reshape(reconObj.G' * (reconObj.wt.pipe .* data(:)),reconObj.G.idim);
 
-% Show reconstruction
+%% Conjugate phase reconstruction
+% Raw data - no weighting
+recon_conj_raw = reconObj.G' * (reconObj.wt.pipe .* data(:));
+recon_conj_raw = embed(recon_conj_raw, mask);
 figure();
-imslice(abs(recon_vol),'NUFFT Reconstruction');
+imslice(abs(recon_conj_raw));
+colormap(gray);
+axis image;
+title('Conjugate Phase Recon - raw data');
+colorbar();
+
+% Naive weighting
+recon_conj_naive = reconObj.G' * (reconObj.wt.pipe .* data(:) ./ decay_weight );
+recon_conj_naive = embed(recon_conj_naive, mask);
+figure();
+imslice(abs(recon_conj_naive));
+colormap(gray);
+axis image;
+title('Conjugate Phase Recon - naive weighting');
+colorbar();
+
+%% Conjugate Gradient reconstruction
+% Raw data - no weighting
+niter = 10;
+recon_pcgq_raw = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, 1, data, 0, ...
+    'niter', niter, 'isave',1:niter);
+recon_pcgq_raw  = reshape(recon_pcgq_raw, [size(mask) niter]);
+figure();
+imslice(abs(recon_pcgq_raw));
+colormap(gray);
+axis image;
+title('Itterative reconstruction - raw data');
+colorbar()
+
+% Naive weighting
+recon_pcgq_naive = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, 1, ...
+    data./decay_weight, 0, ...
+    'niter', niter, 'isave',1:niter);
+recon_pcgq_naive  = reshape(recon_pcgq_naive, [size(mask) niter]);
+figure();
+imslice(abs(recon_pcgq_naive));
+colormap(gray);
+axis image;
+title('Itterative reconstruction - naive weighting');
+colorbar()
+
+% Model based reconstruction with RF weighting
+niter = 50;
+startIter = 20;
+recon_pcgq_smart = qpwls_pcg1_snrweighted(0*recon_conj_raw(:), reconObj.G, ...
+    1, data, 0, decay_weight, 'niter', niter, 'isave',startIter:niter);
+recon_pcgq_smart  = reshape(recon_pcgq_smart, [size(mask) niter-startIter+1]);
+figure();
+imslice(abs(recon_pcgq_smart));
+colormap(gray);
+axis image;
+title('Model based Itterative reconstruction - RF weighting');
+colorbar()
+
+% Model based reconstruction with RF weighting and noise penalty
+recon_pcgq_smart = qpwls_pcg1_snrweighted(0*recon_conj_raw(:), reconObj.G, ...
+    Gdiag(decay_weight), data, 0, decay_weight, 'niter', niter, 'isave',startIter:niter);
+recon_pcgq_smart  = reshape(recon_pcgq_smart, [size(mask) niter-startIter+1]);
+figure();
+imslice(abs(recon_pcgq_smart));
+colormap(gray);
+axis image;
+title('Model based Itterative reconstruction - RF weighting, noise penalty');
+colorbar()
+
+% %% Penalized Congugate Gradient with quadratic penalty
+% weighting = Gdiag(decay_weight);
+% niter = 30;
+% beta = 1*10^6 % good for quadratic
+% C = Cdiff(sqrt(beta) * mask, 'edge_type', 'tight');
+% recon_penalized_weighteddecay = qpwls_pcg1(0*recon_vol(:), reconObj.G, ...
+%     weighting, data./decay_weight, C, 'niter', niter, 'isave',1:niter);
+% recon_penalized_weighteddecay  = reshape(recon_penalized_weighteddecay, [N niter]);
+% figure();
+% imslice(abs(recon_penalized_weighteddecay));
+% colormap(gray);
+% axis image;
+% title(['Beta = ' num2str(beta)]);
+% colorbar();
 
 % %% Gridding reconstruction
 % % Calculate DCF
@@ -627,40 +723,3 @@ imslice(abs(recon_vol),'NUFFT Reconstruction');
 % % Show the volume
 % figure();
 % imslice(abs(image_vol),'Gridding Reconstruction');
-
-%% Itterative Recon - no decay correction
-niter = 60;
-startIter = 50;
-recon_pcgq = qpwls_pcg1(0.*recon_vol(:), reconObj.G, 1, ...
-    data, 0, 'niter', niter, 'isave',startIter:niter);
-recon_pcgq  = reshape(recon_pcgq, [N niter]);
-figure();
-imslice(abs(recon_pcgq));
-colormap(gray);
-axis image;
-title('Unweighted Conj Grad with no penalty');
-colorbar();
-
-%% Itterative Recon - naive decay correction
-recon_pcgq = qpwls_pcg1(0.*recon_vol(:), reconObj.G, 1, ...
-    data./decay_weight(:), 0, 'niter', niter, 'isave',startIter:niter);
-recon_pcgq  = reshape(recon_pcgq, [N niter-st]);
-figure();
-imslice(abs(recon_pcgq));
-colormap(gray);
-axis image;
-title('Unweighted Conj Grad with no penalty');
-colorbar();
-
-%% Itterative Recon - weighted decay correction
-niter = 60;
-weighting = Gdiag(decay_weight);
-recon_pcgq = qpwls_pcg1(0.*recon_vol(:), reconObj.G, weighting, ...
-    data./decay_weight, 0, 'niter', niter, 'isave',startIter:niter);
-recon_pcgq  = reshape(recon_pcgq, [N niter]);
-figure();
-imslice(abs(recon_pcgq));
-colormap(gray);
-axis image;
-title('Unweighted Conj Grad with no penalty');
-colorbar();
