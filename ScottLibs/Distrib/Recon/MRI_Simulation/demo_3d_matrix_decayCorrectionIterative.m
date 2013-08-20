@@ -2,7 +2,7 @@
 clc; clear all; close all;
 
 %% Simulation parameters
-fov = 25; %cm
+fov = 22; %cm
 s1 = 0;   % Background signal value
 s2 = 100; % Interior filling
 s3 = 25;  % Outer structure of phantom
@@ -28,16 +28,16 @@ header.rdb = struct();
 header.rdb.rdb_hdr_user12 = 15.63;      % Receiver bandwidth
 header.rdb.rdb_hdr_user22 = 0.048;      % Time between ADC on and start of gradient ramp
 header.rdb.rdb_hdr_user1 = 0.508;        % Time to ramp gradients
-header.rdb.rdb_hdr_frame_size = 100;	% Number of sample points per frame/ray
+header.rdb.rdb_hdr_frame_size = 64;	% Number of sample points per frame/ray
 header.rdb.rdb_hdr_user21 = 1600;       % NUFFT=1400, Gridding=1600
-nframes = 4601;
+nframes = 1001;
 primeplus = 101;
 loop_factor = 1; % 1201 seems good
 
 % NUFFT Reconstruction options
 nNeighbors = 3;
-overgridfactor = 2;
-dcf_iter = 3;
+overgridfactor = 3;
+dcf_iter = 20;
 sz = header.rdb.rdb_hdr_frame_size*scale; % image matrix size
 N = [sz sz sz];
 J = [nNeighbors nNeighbors nNeighbors];
@@ -563,7 +563,7 @@ shading interp;
 title('Exact fft magnitude');
 
 %% Calculate noise
-snr = 100;
+snr = 1000;
 snr_db = 20*log10(snr);
 noise = data - awgn(data,snr_db,'measured');
 % noise = noise_pct*max(abs(data(:))) * (rand(size(data)) - 0.5);
@@ -597,10 +597,9 @@ colormap(jet);
 shading interp;
 title('noisy fft magnitude');
 
-%% NUFFT Reconstruction
-% Calculate Sample Density Corrections
+%% Calculate Sample Density Corrections
 disp('Reconstructing NUFFT');
-reconObj.G = Gmri(traj, mask, 'fov', N, 'nufft_args', {N,J,K,N/2,'minmax:kb'});
+reconObj.G = Gmri(traj, mask, 'fov', N, 'nufft_args', {N,J,K,N/2,'kaiser'});
 clear K J;
 
 disp('Itteratively calculating density compensation coefficients...');
@@ -616,32 +615,9 @@ for iter = 1:dcf_iter
         (reconObj.G.arg.Gnufft.arg.st.p'*(reconObj.wt.pipe)))));
 end
 
-
 %% Conjugate phase reconstruction
 % Raw data - no weighting
 recon_conj_raw = reconObj.G' * (reconObj.wt.pipe .* data(:))*fov/prod(N);
-% estData = double(reconObj.G * recon_conj_raw);
-% errorData = double(data_ideal-estData);
-% 
-% figure()
-% subplot(1,3,1);
-% surf(abs(reshape(data_ideal,[header.rdb.rdb_hdr_frame_size nframes])));
-% colormap(jet);
-% shading interp;
-% title('Data');
-% 
-% subplot(1,3,2);
-% surf(abs(reshape(estData,[header.rdb.rdb_hdr_frame_size nframes])));
-% colormap(jet);
-% shading interp;
-% title('Estimated Data');
-% 
-% subplot(1,3,3);
-% surf(abs(reshape(errorData,[header.rdb.rdb_hdr_frame_size nframes])));
-% colormap(jet);
-% shading interp;
-% title('Error');
-
 recon_conj_raw = embed(recon_conj_raw, mask);
 figure();
 imslice(abs(recon_conj_raw),'Conj Phase - Raw');
@@ -649,148 +625,65 @@ colormap(gray);
 axis image;
 title('Conjugate Phase Recon - raw data');
 colorbar();
-
-tesasdf = 1;
-% 
-% % Naive weighting
-% recon_conj_naive = reconObj.G' * (reconObj.wt.pipe .* data(:) ./ decay_weight );
-% recon_conj_naive = embed(recon_conj_naive, mask);
-% figure();
-% imslice(abs(recon_conj_naive),'Conj Phase - Naive');
-% colormap(gray);
-% axis image;
-% title('Conjugate Phase Recon - naive weighting');
-% colorbar();
-% 
-% %% Conjugate Gradient reconstruction
-% Raw data - no weighting
-niter = 20;
-startIter = 1;
-recon_pcgq_raw = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, 1, data, 0, ...
-    'niter', niter, 'isave',startIter:niter);
-recon_pcgq_raw  = reshape(recon_pcgq_raw, [size(mask) niter-startIter+1]);
-figure();
-imslice(abs(recon_pcgq_raw),'Iterative - Raw');
-colormap(gray);
-axis image;
-title('Itterative reconstruction - raw data');
-colorbar()
+nii = make_nii(abs(recon_conj_raw));
+save_nii(nii, 'recon_conj_raw.nii',16);
 
 % Naive weighting
-recon_pcgq_naive = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, 1, ...
-    data./decay_weight, 0, ...
-    'niter', niter, 'isave',startIter:niter);
-recon_pcgq_naive  = reshape(recon_pcgq_naive, [size(mask) niter-startIter+1]);
+recon_conj_naive = reconObj.G' * (reconObj.wt.pipe .* data(:) ./ decay_weight );
+recon_conj_naive = embed(recon_conj_naive, mask);
 figure();
-imslice(abs(recon_pcgq_naive),'Iterative - Naive');
+imslice(abs(recon_conj_naive),'Conj Phase - Naive');
 colormap(gray);
 axis image;
-title('Itterative reconstruction - naive weighting');
-colorbar()
-% 
+title('Conjugate Phase Recon - naive weighting');
+colorbar();
 
-% sigma = 2.5;
-% filt_sz = 4;
-% lsp = -filt_sz:filt_sz;
-% [flt_x flt_y flt_z]= meshgrid(lsp, lsp, lsp);
-% r = sqrt(flt_x.^2 + flt_y.^2 + flt_z.^2);
-% kern = exp(-(r.^2)/(sigma^2));
+nii = make_nii(abs(recon_conj_naive));
+save_nii(nii, 'recon_conj_naive.nii',16);
+clear recon_conj_naive recon_conj_raw data_ideal header ideal_im new_idx noise old_idx x y z;
+clear data_cartesian nii u v w cp rp phantom traj traj_physical;
+close all;
+% % Test 1 of SNR weighting
+% [row, col, proximity_vals] = find(reconObj.G.arg.Gnufft.arg.st.p.arg.G);
+% [m,n]=size(reconObj.G.arg.Gnufft.arg.st.p.arg.G);
+% snr_vals = decay_weight(row);
 % 
-% recon_conj_filt = imfilter(recon_conj_raw,kern);
-% figure();
-% imslice(abs(recon_conj_filt));
-% colormap(gray);
+% % Test fix?
+% reconObj.G.arg.Gnufft.arg.st.p = sparse(row,col,snr_vals.*proximity_vals,m,n,length(proximity_vals));
+% reconObj.G.arg.Gnufft.arg.st.p = Gsparse(reconObj.G.arg.Gnufft.arg.st.p,'odim', [length(data(:)) 1], 'idim', [prod(reconObj.G.arg.Gnufft.arg.st.Kd) 1]);
+% 
+% wi = ones(reconObj.G.arg.Gnufft.arg.st.Kd);
+% 
+% wi = 1./abs(reconObj.G.arg.Gnufft.arg.st.p * wi(:)); % Reasonable first guess
+% 
+% % Calculate density compensation using Pipe method
+% % close all;
+% for iter = 1:dcf_iter
+%     disp(['   Iteration:' num2str(iter)]);
+%     wi = abs(wi ./ (reconObj.G.arg.Gnufft.arg.st.p * reconObj.G.arg.Gnufft.arg.st.p'*wi));
+% end
 
-% % Model based reconstruction with RF weighting
-recon_pcgq_smart = qpwls_pcg1_snrweighted(0*recon_conj_raw(:), reconObj.G, ...
-    1, data(:), 0, decay_weight, data_ideal, 'niter', niter, 'isave',startIter:niter);
-recon_pcgq_smart  = reshape(recon_pcgq_smart, [size(mask) niter-startIter+1]);
+% Test 1 of SNR weighting
+[row, col, proximity_vals] = find(reconObj.G.arg.Gnufft.arg.st.p.arg.G);
+[m,n]=size(reconObj.G.arg.Gnufft.arg.st.p.arg.G);
+snr_vals = decay_weight(row);
+sum_pix = sparse(row,col,snr_vals,m,n,length(proximity_vals));
+sum_pix = sum(sum_pix);
+% sum_pix = nonzeros(sum_pix);
+sum_pix = sum_pix(col)';
+
+% Test fix?
+reconObj.G.arg.Gnufft.arg.st.p = sparse(row,col,snr_vals.*proximity_vals./sum_pix,m,n,length(proximity_vals));
+reconObj.G.arg.Gnufft.arg.st.p = Gsparse(reconObj.G.arg.Gnufft.arg.st.p,'odim', [length(data(:)) 1], 'idim', [prod(reconObj.G.arg.Gnufft.arg.st.Kd) 1]);
+clear row col proximity_vals snr_vals data_cartesian nii u v w cp rp phantom traj traj_physical;
+wi = reconObj.wt.pipe;
+
+% SNR and proximity weighted
+recon_conj_raw = reconObj.G' * (wi .* data ./ decay_weight );
+recon_conj_raw = embed(recon_conj_raw, mask);
 figure();
-imslice(abs(recon_pcgq_smart),'Iterative - RF weighted');
+imslice(abs(recon_conj_raw),'Conjugate Phase Recon - scott weights');
 colormap(gray);
 axis image;
-title('Model based Itterative reconstruction - RF weighting');
-colorbar()
-teaasd = 1;
-% % Model based reconstruction with RF weighting and noise penalty
-% recon_pcgq_penalty = qpwls_pcg1_snrweighted(0*recon_conj_raw(:), reconObj.G, ...
-%     Gdiag(decay_weight), data, 0, decay_weight, 'niter', niter, 'isave',startIter:niter);
-% recon_pcgq_penalty  = reshape(recon_pcgq_penalty, [size(mask) niter-startIter+1]);
-% figure();
-% imslice(abs(recon_pcgq_penalty),'Iterative - Rf weighted, penalized');
-% colormap(gray);
-% axis image;
-% title('Model based Itterative reconstruction - RF weighting, noise penalty');
-% colorbar()
-
-% %% Penalized Congugate Gradient with quadratic penalty
-% weighting = Gdiag(decay_weight);
-% niter = 30;
-% beta = 1*10^6 % good for quadratic
-% C = Cdiff(sqrt(beta) * mask, 'edge_type', 'tight');
-% recon_penalized_weighteddecay = qpwls_pcg1(0*recon_vol(:), reconObj.G, ...
-%     weighting, data./decay_weight, C, 'niter', niter, 'isave',1:niter);
-% recon_penalized_weighteddecay  = reshape(recon_penalized_weighteddecay, [N niter]);
-% figure();
-% imslice(abs(recon_penalized_weighteddecay));
-% colormap(gray);
-% axis image;
-% title(['Beta = ' num2str(beta)]);
-% colorbar();
-
-% %% Gridding reconstruction
-% % Calculate DCF
-% disp('Reconstructing Gridding');
-% overgridfactor = overgridfactor_grid;
-% traj = 0.5*traj;
-% disp('Calculating DCF...');
-% dcf_type = 4; % 1=Analytical, 2=Hitplane, 3=Voronoi, 4=Itterative, 5=Voronoi+Itterative
-% im_sz_dcf = double(round(scale*N));
-% numIter = 25;
-% saveDCF_dir = '../DCF/precalcDCFvals/';
-% while(any(traj(:)>0.5))
-%     addIdx = traj(:)>0.5;
-%     traj(addIdx) = traj(addIdx) - 1;
-% end
-% while(any(traj(:)<-0.5))
-%     subIdx = traj(:)<-0.5;
-%     traj(subIdx) = traj(subIdx) + 1;
-% end
-% dcf = calcDCF_Itterative(traj', overgridfactor,im_sz_dcf,numIter);
-% clear dcf_type im_sz_dcf numIter saveDCF_dir;
-% 
-% % Apply DCF to data
-% data = [real(data)'; -imag(data)'].*repmat(dcf,[2 1]);
-% clear dcf;
-% 
-% %Calculate Gridding Kernel
-% disp('Calculating Kernel...');
-% kernel_width = kernel_width*overgridfactor; % Account overgridding
-% [kernel_vals]=KaiserBesselKernelGenerator(kernel_width, overgridfactor, ...
-%     kernel_lut_size);
-% clear kernel_lut_size;
-% 
-% %Regrid the fids
-% disp('Gridding...');
-% output_dims  = uint32(round(scale*N));
-% kspace_vol = grid_conv_mex(data, traj', ...
-%     kernel_width, kernel_vals, overgridfactor*output_dims);
-% 
-% % Calculate IFFT to get image volume
-% disp('Calculating IFFT...');
-% clear coords data kernel_vals;
-% kspace_vol = fftshift(kspace_vol);
-% kspace_vol = ifftn(kspace_vol);
-% kspace_vol = fftshift(kspace_vol);
-% 
-% % Crop out center of image to compensate for overgridding
-% % disp('Cropping out overgridding...');
-% last = (overgridfactor-1)*output_dims/2;
-% image_vol = kspace_vol(last(1)+1:last(1)+output_dims(1), ...
-%     last(2)+1:last(2)+output_dims(2), ...
-%     last(3)+1:last(3)+output_dims(3));
-% clear kspace_vol last output_dims;
-% 
-% % Show the volume
-% figure();
-% imslice(abs(image_vol),'Gridding Reconstruction');
+title('Conjugate Phase Recon - SNR and proximity weighted');
+colorbar();

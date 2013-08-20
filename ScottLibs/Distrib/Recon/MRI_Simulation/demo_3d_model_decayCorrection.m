@@ -563,10 +563,9 @@ shading interp;
 title('Exact fft magnitude');
 
 %% Calculate noise
-snr = 100;
+snr = 150;
 snr_db = 20*log10(snr);
 noise = data - awgn(data,snr_db,'measured');
-% noise = noise_pct*max(abs(data(:))) * (rand(size(data)) - 0.5);
 
 %% Apply simulated RF decay
 min_val = 0.3;
@@ -620,28 +619,6 @@ end
 %% Conjugate phase reconstruction
 % Raw data - no weighting
 recon_conj_raw = reconObj.G' * (reconObj.wt.pipe .* data(:))*fov/prod(N);
-% estData = double(reconObj.G * recon_conj_raw);
-% errorData = double(data_ideal-estData);
-% 
-% figure()
-% subplot(1,3,1);
-% surf(abs(reshape(data_ideal,[header.rdb.rdb_hdr_frame_size nframes])));
-% colormap(jet);
-% shading interp;
-% title('Data');
-% 
-% subplot(1,3,2);
-% surf(abs(reshape(estData,[header.rdb.rdb_hdr_frame_size nframes])));
-% colormap(jet);
-% shading interp;
-% title('Estimated Data');
-% 
-% subplot(1,3,3);
-% surf(abs(reshape(errorData,[header.rdb.rdb_hdr_frame_size nframes])));
-% colormap(jet);
-% shading interp;
-% title('Error');
-
 recon_conj_raw = embed(recon_conj_raw, mask);
 figure();
 imslice(abs(recon_conj_raw),'Conj Phase - Raw');
@@ -650,8 +627,6 @@ axis image;
 title('Conjugate Phase Recon - raw data');
 colorbar();
 
-tesasdf = 1;
-% 
 % % Naive weighting
 % recon_conj_naive = reconObj.G' * (reconObj.wt.pipe .* data(:) ./ decay_weight );
 % recon_conj_naive = embed(recon_conj_naive, mask);
@@ -662,135 +637,32 @@ tesasdf = 1;
 % title('Conjugate Phase Recon - naive weighting');
 % colorbar();
 % 
-% %% Conjugate Gradient reconstruction
-% Raw data - no weighting
-niter = 20;
-startIter = 1;
-recon_pcgq_raw = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, 1, data, 0, ...
-    'niter', niter, 'isave',startIter:niter);
-recon_pcgq_raw  = reshape(recon_pcgq_raw, [size(mask) niter-startIter+1]);
-figure();
-imslice(abs(recon_pcgq_raw),'Iterative - Raw');
-colormap(gray);
-axis image;
-title('Itterative reconstruction - raw data');
-colorbar()
-
-% Naive weighting
-recon_pcgq_naive = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, 1, ...
-    data./decay_weight, 0, ...
-    'niter', niter, 'isave',startIter:niter);
+%% Conjugate Gradient reconstruction
+% Model based reconstruction with RF weighting
+niter = 19;
+startIter = 19;
+recon_pcgq_naive = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, ...
+    1, data./decay_weight, 0, 'niter', niter, 'isave',startIter:niter);
 recon_pcgq_naive  = reshape(recon_pcgq_naive, [size(mask) niter-startIter+1]);
 figure();
-imslice(abs(recon_pcgq_naive),'Iterative - Naive');
+imslice(abs(recon_pcgq_naive),'Iterative - naive weighted');
 colormap(gray);
 axis image;
-title('Itterative reconstruction - naive weighting');
-colorbar()
-% 
+title('Model based Itterative reconstruction - naive weighting');
+colorbar();
 
-% sigma = 2.5;
-% filt_sz = 4;
-% lsp = -filt_sz:filt_sz;
-% [flt_x flt_y flt_z]= meshgrid(lsp, lsp, lsp);
-% r = sqrt(flt_x.^2 + flt_y.^2 + flt_z.^2);
-% kern = exp(-(r.^2)/(sigma^2));
-% 
-% recon_conj_filt = imfilter(recon_conj_raw,kern);
-% figure();
-% imslice(abs(recon_conj_filt));
-% colormap(gray);
-
-% % Model based reconstruction with RF weighting
-recon_pcgq_smart = qpwls_pcg1_snrweighted(0*recon_conj_raw(:), reconObj.G, ...
-    1, data(:), 0, decay_weight, data_ideal, 'niter', niter, 'isave',startIter:niter);
+% Model based reconstruction with RF weighting
+start_guess = recon_pcgq_naive(:,:,:,niter-startIter+1);
+% clear recon_pcgq_naive;
+% close all;
+niter = 30;
+startIter = 1;
+recon_pcgq_smart = qpwls_pcg1_snrweighted(start_guess, reconObj.G, ...
+    1, data, 0, decay_weight, data_ideal, 'niter', niter, 'isave',startIter:niter);
 recon_pcgq_smart  = reshape(recon_pcgq_smart, [size(mask) niter-startIter+1]);
 figure();
 imslice(abs(recon_pcgq_smart),'Iterative - RF weighted');
 colormap(gray);
 axis image;
 title('Model based Itterative reconstruction - RF weighting');
-colorbar()
-teaasd = 1;
-% % Model based reconstruction with RF weighting and noise penalty
-% recon_pcgq_penalty = qpwls_pcg1_snrweighted(0*recon_conj_raw(:), reconObj.G, ...
-%     Gdiag(decay_weight), data, 0, decay_weight, 'niter', niter, 'isave',startIter:niter);
-% recon_pcgq_penalty  = reshape(recon_pcgq_penalty, [size(mask) niter-startIter+1]);
-% figure();
-% imslice(abs(recon_pcgq_penalty),'Iterative - Rf weighted, penalized');
-% colormap(gray);
-% axis image;
-% title('Model based Itterative reconstruction - RF weighting, noise penalty');
-% colorbar()
-
-% %% Penalized Congugate Gradient with quadratic penalty
-% weighting = Gdiag(decay_weight);
-% niter = 30;
-% beta = 1*10^6 % good for quadratic
-% C = Cdiff(sqrt(beta) * mask, 'edge_type', 'tight');
-% recon_penalized_weighteddecay = qpwls_pcg1(0*recon_vol(:), reconObj.G, ...
-%     weighting, data./decay_weight, C, 'niter', niter, 'isave',1:niter);
-% recon_penalized_weighteddecay  = reshape(recon_penalized_weighteddecay, [N niter]);
-% figure();
-% imslice(abs(recon_penalized_weighteddecay));
-% colormap(gray);
-% axis image;
-% title(['Beta = ' num2str(beta)]);
-% colorbar();
-
-% %% Gridding reconstruction
-% % Calculate DCF
-% disp('Reconstructing Gridding');
-% overgridfactor = overgridfactor_grid;
-% traj = 0.5*traj;
-% disp('Calculating DCF...');
-% dcf_type = 4; % 1=Analytical, 2=Hitplane, 3=Voronoi, 4=Itterative, 5=Voronoi+Itterative
-% im_sz_dcf = double(round(scale*N));
-% numIter = 25;
-% saveDCF_dir = '../DCF/precalcDCFvals/';
-% while(any(traj(:)>0.5))
-%     addIdx = traj(:)>0.5;
-%     traj(addIdx) = traj(addIdx) - 1;
-% end
-% while(any(traj(:)<-0.5))
-%     subIdx = traj(:)<-0.5;
-%     traj(subIdx) = traj(subIdx) + 1;
-% end
-% dcf = calcDCF_Itterative(traj', overgridfactor,im_sz_dcf,numIter);
-% clear dcf_type im_sz_dcf numIter saveDCF_dir;
-% 
-% % Apply DCF to data
-% data = [real(data)'; -imag(data)'].*repmat(dcf,[2 1]);
-% clear dcf;
-% 
-% %Calculate Gridding Kernel
-% disp('Calculating Kernel...');
-% kernel_width = kernel_width*overgridfactor; % Account overgridding
-% [kernel_vals]=KaiserBesselKernelGenerator(kernel_width, overgridfactor, ...
-%     kernel_lut_size);
-% clear kernel_lut_size;
-% 
-% %Regrid the fids
-% disp('Gridding...');
-% output_dims  = uint32(round(scale*N));
-% kspace_vol = grid_conv_mex(data, traj', ...
-%     kernel_width, kernel_vals, overgridfactor*output_dims);
-% 
-% % Calculate IFFT to get image volume
-% disp('Calculating IFFT...');
-% clear coords data kernel_vals;
-% kspace_vol = fftshift(kspace_vol);
-% kspace_vol = ifftn(kspace_vol);
-% kspace_vol = fftshift(kspace_vol);
-% 
-% % Crop out center of image to compensate for overgridding
-% % disp('Cropping out overgridding...');
-% last = (overgridfactor-1)*output_dims/2;
-% image_vol = kspace_vol(last(1)+1:last(1)+output_dims(1), ...
-%     last(2)+1:last(2)+output_dims(2), ...
-%     last(3)+1:last(3)+output_dims(3));
-% clear kspace_vol last output_dims;
-% 
-% % Show the volume
-% figure();
-% imslice(abs(image_vol),'Gridding Reconstruction');
+colorbar();
