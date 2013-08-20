@@ -155,9 +155,9 @@ for id=1:length(N)
 	kspace(:,id) = omega(:,id) / (2*pi) / dx;
 end
 
-if ~isempty(arg_wi) && nargout > 2 && isempty(wi)
-	wi = mri_density_comp(kspace, arg_wi{:});
-end
+% if ~isempty(arg_wi) && nargout > 2 && isempty(wi)
+% 	wi = mri_density_comp(kspace, 'pipe');
+% end
 
 
 %
@@ -204,7 +204,7 @@ arg.ir = [];		% default: 0:nr
 arg.omax = pi;		% maximum omega
 arg = vararg_pair(arg, varargin);
 if isempty(arg.ir), arg.ir = [0:arg.nr]; end
-if isempty(arg.na), arg.na = 4*ceil(arg.na_nr * arg.nr/4); end % mult of 4
+if isempty(arg.na), arg.na = arg.na_nr * arg.nr; end % mult of 4
 om = arg.ir/arg.nr * pi;
 ang = [0:arg.na-1]/arg.na * 2*pi;
 [om ang] = ndgrid(om, ang); % [nr+1, na]

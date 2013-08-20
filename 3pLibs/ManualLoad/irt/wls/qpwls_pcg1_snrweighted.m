@@ -1,28 +1,27 @@
-  function [xs, info] = pwls_pcg1(x, A, W, yi, R, varargin)
-%|function [xs, info] = pwls_pcg1(x, A, W, yi, R, [options])
+  function [xs, info] = qpwls_pcg1_snrweighted(x, A, W, yi, C, w, data_ideal, varargin)
+%|function [xs, info] = qpwls_pcg1(x, A, W, yi, C, [options])
 %|
-%| penalized weighted least squares (PWLS)
-%| with convex non-quadratic regularization,
-%| minimized via preconditioned conjugate gradient algorithm.
-%| cost(x) = (y-Ax)'W(y-Ax)/2 + R(x)
+%| quadratic penalized weighted least squares (QPWLS) via
+%| preconditioned conjugate gradients (PCG) algorithm
+%| cost(x) = (y-Ax)'W(y-Ax) / 2 + x'C'Cx / 2
 %|
 %| in
 %|	x	[np 1]		initial estimate
 %|	A	[nd np]		system matrix
 %|	W	[nd nd]		data weighting matrix, usually Gdiag(wi)
 %|	yi	[nd 1]		noisy data
-%|	R			penalty object (see Robject.m)
+%|	C	[nc np]		penalty 'differencing matrix' (0 for unregularized)
 %|
 %| options
 %|	niter			# total iterations (default: 1)
 %|					(max # if tol used)
 %|	isave	[]		list of iterations to archive (default: 'last')
 %|	userfun	@		user defined function handle (see default below)
-%|					taking arguments (x, iter, userarg{:})
+%|					taking arguments (x, userarg{:})
 %|	userarg {}		user arguments to userfun (default {})
-%|	precon	[np np]		preconditioner (default: 1, i.e., none)
-%|	stepper			method for step-size line search
-%|				default: {'qs', 3}
+%|	precon	[np np]		preconditioner (matrix or object) (or 1)
+%|	dircheck 0|1		check descent direction? (default: 1)
+%|				set to 0 to save time, if you dare...
 %|	stop_diff_tol		stop iterations if norm(xnew-xold)/norm(xnew)
 %|				is less than this unitless value.  default: 0
 %|	stop_diff_norm		use norm(.,type) for stop rule
@@ -35,19 +34,19 @@
 %|	xs	[np niter]	estimates each iteration
 %|	info	[niter 3]	gamma, step size, time each iteration
 %|
-%| Copyright 1996-7, Jeff Fessler, University of Michigan
+%| Copyright Jan 1998, Jeff Fessler, University of Michigan
 
-if nargin == 1 && streq(x, 'test'), pwls_pcg1_test, return, end
+if nargin == 1 && streq(x, 'test'), qpwls_pcg1_test0, return, end
 if nargin < 5, help(mfilename), error(mfilename), end
 
 % defaults
 arg.precon = 1;
 arg.niter = 1;
 arg.isave = [];
-arg.stepper = {'qs', 3}; % quad surr with this # of subiterations
 arg.userfun = @userfun_default;
 arg.userarg = {};
 arg.key = 1;
+arg.dircheck = true; % default is to check descent direction
 arg.stop_diff_tol = 0;
 arg.stop_diff_norm = 2;
 arg.stop_grad_tol = 0;
@@ -65,6 +64,15 @@ if arg.stop_grad_tol
 	norm_grad = @(g) norm(g, arg.stop_grad_norm) / reale(yi' * (W * yi));
 end
 
+if ~isreal(yi) && ~isequal(arg.precon, 1)
+	persistent warned
+	if isempty(warned), warned = 0; end
+	if ~warned
+		warning 'not 100% sure about the complex preconditioned case'
+		warned = 1;
+	end
+end
+
 cpu etic
 if isempty(x), x = zeros(ncol(A),1); end
 
@@ -80,18 +88,18 @@ end
 % initialize projections
 ticker(mfilename, 1, arg.niter)
 Ax = A * x;
+Cx = C * x;
 
-oldinprod = 0;
+npts = round(size(A,2)^(1/length(A.arg.Nd)));
+nframes = size(A,1)/npts;
 
 % iterate
 for iter = 1:arg.niter
 	ticker(mfilename, iter, arg.niter)
-
-	% (negative) gradient
-	ngrad = A' * (W * (yi-Ax));
-	pgrad = R.cgrad(R, x);
-	ngrad = ngrad - pgrad;
-
+    
+    % (negative) gradient
+	ngrad = (A' * (W * w.* (yi-w.*Ax)) - C' * Cx);   
+ 
 	if arg.stop_grad_tol && norm_grad(ngrad) < arg.stop_grad_tol
 		if arg.chat
 			printm('stop at iteration %d with grad %g < %g', ...
@@ -107,10 +115,12 @@ for iter = 1:arg.niter
 
 	% preconditioned gradient
 	pregrad = arg.precon * ngrad;
-
+    
 	% search direction
-	newinprod = dot_double(conj(ngrad), pregrad);
-	newinprod = reale(newinprod, 'warn', 'inprod');
+	newinprod = ngrad' * pregrad; % an estimate of error - Scott
+
+% 	newinprod = abs(newinprod);
+    newinprod = reale(newinprod, 'warn', 'inprod');
 	if iter == 1
 		ddir = pregrad;
 		gamma = 0;
@@ -128,7 +138,7 @@ for iter = 1:arg.niter
 	oldinprod = newinprod;
 
 	% check if descent direction
-	if real(dot_double(conj(ddir), ngrad)) < 0
+	if arg.dircheck && real(ddir' * ngrad) < 0
 		warn 'wrong direction; try using stop_grad_tol'
 		ratio = norm(ngrad(:), arg.stop_grad_norm) / (yi'*W*yi);
 		pr ratio % see how small it is
@@ -137,71 +147,33 @@ for iter = 1:arg.niter
 
 	% step size in search direction
 	Adir = A * ddir;
-%	Cdir = R.C * ddir; % this is too big for 3D CT problems
+	Cdir = C * ddir;
 
-	% one step based on quadratic surrogate for penalty
-	if streq(arg.stepper{1}, 'qs1')
-%		pdenom = Cdir' * (R.wpot(R.wt, Cdir) .* Cdir); % avoid Cdir
-%		pdenom = (abs(ddir).^2)' * R.denom(R, x);
-		pdenom = dot_double(abs(ddir).^2, R.denom(R, x)); % 2012-07-24
-%		ldenom = Adir'*(W*Adir);
-		ldenom = dot_double(conj(Adir), W*Adir); % 2012-07-24
-		ldenom = reale(ldenom);
-		denom = ldenom + pdenom;
-		if denom == 0
-			warning 'found exact solution???  step=0 now!?'
-			step = 0;
-		else
-			step = real((ddir' * ngrad) / denom);
-		end
-
-	% Iteratively minimize the 1D line-search function over step:
-	%	1/2 || y - A (x + step*ddir) ||_W^2 + R(x + step*ddir)
-	% This is a real-valued function of the real-valued step parameter.
-	elseif streq(arg.stepper{1}, 'qs')
-		nsub = arg.stepper{2};
-	%	dAWAd = Adir' * (W * Adir);
-		dAWAd = dot_double(conj(Adir), W * Adir); % 2012-07-24
-		dAWAd = real(dAWAd); % 2008-10-16
-		dAWr = Adir' * (W * (yi-Ax));
-		dAWr = real(dAWr); % 2008-10-16
+	denom = Adir'*(W*Adir) + Cdir'*Cdir;
+	denom = reale(denom, 'error', 'denom');
+	if denom == 0
+		warning 'found exact solution??? step=0 now!?'
 		step = 0;
-		for is=1:nsub
-%			pdenom = Cdir' * (R.wpot(R.wt, Cdir) .* Cdir); % avoid Cdir
-%			pdenom = (abs(ddir).^2)' * R.denom(R, x + step * ddir);
-			pdenom = dot_double(abs(ddir).^2, R.denom(R, x + step * ddir));
-			denom = dAWAd + pdenom;
-			if denom == 0 || isinf(denom)
-				'0 or inf denom?'
-				if arg.key, keyboard, end
-				error bad
-			end
-			pgrad = R.cgrad(R, x + step * ddir);
-			pdot = dot_double(conj(ddir), pgrad);
-			pdot = real(pdot); % 2008-10-15
-			step = step - (-dAWr + step * dAWAd + pdot) / denom;
-%			2008-10-16: removed below because made real above
-%			step = real(step); % real step size seems logical
-		end
-
 	else
-		error 'bad stepper'
+		step = (ddir' * ngrad) / denom;
+%		step = reale(step, 'warn', 'step');
+		step = real(step); % real step sizes seems only logical
 	end
 
 	if step < 0
 		warning 'downhill?'
 		if arg.key, keyboard, end
-	end
+    end
 
 	% update
 	Ax = Ax + step * Adir;
-%	Cx = Cx + step * Cdir;
+	Cx = Cx + step * Cdir;
 	x = x + step * ddir;
-
+ 
 	if any(arg.isave == iter)
 		xs(:, arg.isave == iter) = x;
 	end
-	info(iter,:) = arg.userfun(x, iter, arg.userarg{:});
+	info(iter,:) = arg.userfun(x, arg.userarg{:});
 
 	% check norm(xnew-xold) / norm(xnew) vs threshold
 	if arg.stop_diff_tol && ...
@@ -223,34 +195,40 @@ end
 
 % default user function.
 % using this evalin('caller', ...) trick, one can compute anything of interest
-function out = userfun_default(x, iter, varargin)
+function out = userfun_default(x, varargin)
 gamma = evalin('caller', 'gamma');
 step = evalin('caller', 'step');
 out = [gamma step cpu('etoc')];
 
 
-function dot = dot_double(a, b)
-dot = sum(a .* b, 'double'); % double accumulate
-
-
-% pwls_pcg1_test
-function pwls_pcg1_test
+% qpwls_pcg1_test0()
+function qpwls_pcg1_test0
 mask = true([8 7]); mask(1) = false;
-A = 2 * Gdft('mask', mask); % orthogonal to permit analytical solution
+A = Gblur(mask, 'psf', ones(3)/9);
+tmp = ones(size(mask));
+A = Gdiag(tmp(mask), 'mask', mask);
 xtrue = zeros(size(mask), 'single');
 xtrue(end/2, round(end/2)) = 1;
 y = A * xtrue(mask);
-beta = 2^6;
-% trick: using 'mat' not 'mex' option because 'mex' version has edge error
-R = Reg1(mask, 'beta', beta, 'type_penal', 'mat');
+beta = 2^-7;
+beta = 2^-2;
+R = Reg1(mask, 'beta', beta, 'order', 1);
+qpwls_psf(A, R.C, 1, mask, 1, 'loop', 0);
 hess = full(A' * A + R.C' * R.C);
 xhat = hess \ (A' * y);
 xhat = embed(xhat, mask);
-im(xhat)
+pr fwhm2(xhat)
+im clf, im(xhat)
+
+% user functions for tracking time and distance to a reference image
+f.userfun = @(x, xref) [cpu('etoc') norm(x(:) - xref(:))];
+f.userarg = {xhat(mask)}; % reference image just for testing
 
 xinit = 0 * mask;
-xpcg = pwls_pcg1(xinit(mask(:)), A, 1, y, R, 'niter', 100, ...
-	'stop_grad_tol', 1e-6, 'stop_grad_norm', 2, 'chat', 1);
+xpcg = qpwls_pcg1(xinit(mask(:)), A, 1, y, R.C, 'niter', 100, ...
+	'userfun', f.userfun, 'userarg', f.userarg, ...
+        'stop_grad_tol', 1e-8, 'stop_grad_norm', 2, ...
+        'stop_diff_tol', 0e-6, 'stop_diff_norm', 2, 'chat', 1);
 xpcg = embed(xpcg, mask);
 
 im plc 2 2

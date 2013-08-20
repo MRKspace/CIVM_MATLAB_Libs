@@ -476,7 +476,7 @@ if isvar('arg') && streq(arg, 'cm')
 	gp(:,1:6) = gp(:,1:6) / 10;
 end
 
-out = mri_objects('rect2', rp, 'gauss2', gp);
+out = mri_objects('fov', fov,'rect2', rp, 'gauss2', gp);
 
 
 %

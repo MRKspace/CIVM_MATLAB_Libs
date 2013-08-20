@@ -37,13 +37,15 @@ end
 figure_handle = gcf();
 delete(figure_handle);
 figure(figure_handle);
-set(figure_handle,'defaultTextColor',[1 1 1]);
-set(figure_handle,'DefaultAxesColorOrder',[1 1 1]);
-set(figure_handle,'defaultLineColor',[1 1 1]);
-set(figure_handle,'defaultAxesColor',[1 1 1]);
-set(figure_handle,'defaultAxesColor',[1 1 1]);
-set(figure_handle,'defaultAxesColor',[1 1 1]);
-set(figure_handle,'defaultAxesColor',[1 1 1]);
+
+% % Make default colors white
+% set(figure_handle,'defaultTextColor',[0.5 0.5 0.5]);
+% set(figure_handle,'DefaultAxesColorOrder',[1 1 1]);
+% set(figure_handle,'defaultLineColor',[1 1 1]);
+% set(figure_handle,'defaultAxesColor',[1 1 1]);
+% set(figure_handle,'defaultAxesColor',[1 1 1]);
+% set(figure_handle,'defaultAxesColor',[1 1 1]);
+% set(figure_handle,'defaultAxesColor',[1 1 1]);
 
 
 
