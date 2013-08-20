@@ -21,7 +21,7 @@
 *.raw
 *.img
 *.sdcopen
-
+*.nii
 
 #############
 # Matrices  #
@@ -33,6 +33,7 @@
 #############
 *.bak
 *.old*
+*.asv
 
 #############
 # Fessler formats #
