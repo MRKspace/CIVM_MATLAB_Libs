@@ -1,3 +1,4 @@
+function demo_3d_model_decayCorrection()
 % Start with a clean slate
 clc; clear all; close all;
 
@@ -37,7 +38,7 @@ loop_factor = 1; % 1201 seems good
 % NUFFT Reconstruction options
 nNeighbors = 3;
 overgridfactor = 2;
-dcf_iter = 3;
+dcf_iter = 1;
 sz = header.rdb.rdb_hdr_frame_size*scale; % image matrix size
 N = [sz sz sz];
 J = [nNeighbors nNeighbors nNeighbors];
@@ -508,12 +509,12 @@ end
 
 % Create simulated cartesian recon
 ideal_im = fftshift(ifftn(fftshift(data_cartesian)));
-figure();
-imslice(abs(ideal_im),'Cartesian Recon');
-title('Ideal image');
-colormap(gray);
-colorbar();
-axis image;
+% figure();
+% imslice(abs(ideal_im),'Cartesian Recon');
+% title('Ideal image');
+% colormap(gray);
+% colorbar();
+% axis image;
 
 %% Get trajectories and corresponding k-space data
 disp('Getting trajectories');
@@ -555,20 +556,20 @@ else
 end
 
 % Scale data for voxel size (only needed for simulated data)
-% data = data * prod([sz sz sz]/fov);
-figure();
-surf(abs(reshape(data,[header.rdb.rdb_hdr_frame_size nframes])));
-colormap(jet);
-shading interp;
-title('Exact fft magnitude');
+% % data = data * prod([sz sz sz]/fov);
+% figure();
+% surf(abs(reshape(data,[header.rdb.rdb_hdr_frame_size nframes])));
+% colormap(jet);
+% shading interp;
+% title('Exact fft magnitude');
 
 %% Calculate noise
-snr = 150;
+snr = 300;
 snr_db = 20*log10(snr);
 noise = data - awgn(data,snr_db,'measured');
 
 %% Apply simulated RF decay
-min_val = 0.3;
+min_val = 0.5;
 flip_angle = acos(min_val^(1/(nframes-1)))
 decay_weight = cos(flip_angle).^([0:(nframes-1)]);
 decay_weight = repmat(decay_weight,[header.rdb.rdb_hdr_frame_size 1]);
@@ -583,18 +584,18 @@ data = reshape(data, [header.rdb.rdb_hdr_frame_size*nframes 1]);
 traj = reshape(traj, [header.rdb.rdb_hdr_frame_size nframes 3]);
 traj(:,old_idx, :) = traj(:,new_idx,:);
 traj = reshape(traj,[header.rdb.rdb_hdr_frame_size*nframes 3]);
-decay_weight = reshape(decay_weight, [header.rdb.rdb_hdr_frame_size nframes]);
-decay_weight(:,old_idx) = decay_weight(:,new_idx);
-decay_weight = reshape(decay_weight, [header.rdb.rdb_hdr_frame_size*nframes 1]);
+% decay_weight = reshape(decay_weight, [header.rdb.rdb_hdr_frame_size nframes]);
+% decay_weight(:,old_idx) = decay_weight(:,new_idx);
+% decay_weight = reshape(decay_weight, [header.rdb.rdb_hdr_frame_size*nframes 1]);
 
 %% Add noise and decay to signal
 data_ideal = data; % make backup
 data = data(:).*decay_weight(:) + noise(:);
-figure();
-surf(abs(reshape(data,[header.rdb.rdb_hdr_frame_size nframes])));
-colormap(jet);
-shading interp;
-title('noisy fft magnitude');
+% figure();
+% surf(abs(reshape(data,[header.rdb.rdb_hdr_frame_size nframes])));
+% colormap(jet);
+% shading interp;
+% title('noisy fft magnitude');
 
 %% NUFFT Reconstruction
 % Calculate Sample Density Corrections
@@ -602,31 +603,31 @@ disp('Reconstructing NUFFT');
 reconObj.G = Gmri(traj, mask, 'fov', N, 'nufft_args', {N,J,K,N/2,'minmax:kb'});
 clear K J;
 
-disp('Itteratively calculating density compensation coefficients...');
-reconObj.wt.pipe = 1./abs(reconObj.G.arg.Gnufft.arg.st.p * ...
-    ones(reconObj.G.arg.Gnufft.arg.st.Kd)); % Reasonable first guess
-reconObj.wt.max_itter = dcf_iter;
-
-% Calculate density compensation using Pipe method
-for iter = 1:dcf_iter
-    disp(['   Iteration:' num2str(iter)]);
-    reconObj.wt.pipe = abs(reconObj.wt.pipe ./ ...
-        ((reconObj.G.arg.Gnufft.arg.st.p * ...
-        (reconObj.G.arg.Gnufft.arg.st.p'*(reconObj.wt.pipe)))));
-end
-
-
-%% Conjugate phase reconstruction
-% Raw data - no weighting
-recon_conj_raw = reconObj.G' * (reconObj.wt.pipe .* data(:))*fov/prod(N);
-recon_conj_raw = embed(recon_conj_raw, mask);
-figure();
-imslice(abs(recon_conj_raw),'Conj Phase - Raw');
-colormap(gray);
-axis image;
-title('Conjugate Phase Recon - raw data');
-colorbar();
-
+% disp('Itteratively calculating density compensation coefficients...');
+% reconObj.wt.pipe = 1./abs(reconObj.G.arg.Gnufft.arg.st.p * ...
+%     ones(reconObj.G.arg.Gnufft.arg.st.Kd)); % Reasonable first guess
+% reconObj.wt.max_itter = dcf_iter;
+% 
+% % Calculate density compensation using Pipe method
+% for iter = 1:dcf_iter
+%     disp(['   Iteration:' num2str(iter)]);
+%     reconObj.wt.pipe = abs(reconObj.wt.pipe ./ ...
+%         ((reconObj.G.arg.Gnufft.arg.st.p * ...
+%         (reconObj.G.arg.Gnufft.arg.st.p'*(reconObj.wt.pipe)))));
+% end
+% 
+% 
+% %% Conjugate phase reconstruction
+% % Raw data - no weighting
+% recon_conj_raw = reconObj.G' * (reconObj.wt.pipe .* data(:))*fov/prod(N);
+% recon_conj_raw = embed(recon_conj_raw, mask);
+% figure();
+% imslice(abs(recon_conj_raw),'Conj Phase - Raw');
+% colormap(gray);
+% axis image;
+% title('Conjugate Phase Recon - raw data');
+% colorbar();
+% 
 % % Naive weighting
 % recon_conj_naive = reconObj.G' * (reconObj.wt.pipe .* data(:) ./ decay_weight );
 % recon_conj_naive = embed(recon_conj_naive, mask);
@@ -636,33 +637,221 @@ colorbar();
 % axis image;
 % title('Conjugate Phase Recon - naive weighting');
 % colorbar();
-% 
+
 %% Conjugate Gradient reconstruction
-% Model based reconstruction with RF weighting
-niter = 19;
-startIter = 19;
-recon_pcgq_naive = qpwls_pcg1(0*recon_conj_raw(:), reconObj.G, ...
-    1, data./decay_weight, 0, 'niter', niter, 'isave',startIter:niter);
-recon_pcgq_naive  = reshape(recon_pcgq_naive, [size(mask) niter-startIter+1]);
-figure();
-imslice(abs(recon_pcgq_naive),'Iterative - naive weighted');
-colormap(gray);
-axis image;
-title('Model based Itterative reconstruction - naive weighting');
-colorbar();
+% Raw data - no weighting
+niter = 30;
+options.saveBaseName = 'recon_pcgq_raw_';
+options.iter = 1;
+options.volDims = reconObj.G.arg.Gnufft.arg.st.Nd;
+options.ideal_im = ideal_im;
+options.data = data;
+options.A = reconObj.G;
+% qpwls_precon(type, sys, C, mask, varargin)
+[recon_pcgq_raw errors_raw] = qpwls_pcg1(0*mask(:), reconObj.G, ...
+    1, data, 0, 'niter', niter, 'isave',niter, ...
+    'userfun',@saveImageCalcError, 'userarg', {options});
+recon_pcgq_raw  = reshape(recon_pcgq_raw, [size(mask)]);
+clear recon_pcgq_raw;
+% figure();
+% imslice(abs(recon_pcgq_raw),'Iterative - Raw data');
+% colormap(gray);
+% axis image;
+% title('Itterative reconstruction - Raw data');
+% colorbar();
+
+% Naive weighting
+options.saveBaseName = 'recon_pcgq_naive_';
+options.iter = 1;
+[recon_pcgq_naive errors_naive] = qpwls_pcg1(0*mask(:), reconObj.G, ...
+    1, data./decay_weight, 0, 'niter', niter, 'isave',niter, ...
+    'userfun',@saveImageCalcError, 'userarg', {options});
+clear recon_pcgq_naive;
+% recon_pcgq_naive  = reshape(recon_pcgq_naive, [size(mask)]);
+% figure();
+% imslice(abs(recon_pcgq_naive),'Iterative - naive weighted');
+% colormap(gray);
+% axis image;
+% title('Itterative reconstruction - naive weighting');
+% colorbar();
 
 % Model based reconstruction with RF weighting
-start_guess = recon_pcgq_naive(:,:,:,niter-startIter+1);
-% clear recon_pcgq_naive;
-% close all;
-niter = 30;
-startIter = 1;
-recon_pcgq_smart = qpwls_pcg1_snrweighted(start_guess, reconObj.G, ...
-    1, data, 0, decay_weight, data_ideal, 'niter', niter, 'isave',startIter:niter);
-recon_pcgq_smart  = reshape(recon_pcgq_smart, [size(mask) niter-startIter+1]);
-figure();
-imslice(abs(recon_pcgq_smart),'Iterative - RF weighted');
-colormap(gray);
-axis image;
-title('Model based Itterative reconstruction - RF weighting');
-colorbar();
+options.saveBaseName = 'recon_pcgq_snrWeighted_';
+options.iter = 1;
+options.volDims = reconObj.G.arg.Gnufft.arg.st.Nd;
+options.ideal_im = ideal_im;
+options.w = decay_weight;
+[recon_pcgq_snr errors_snr] = qpwls_pcg1_snrweighted(0*mask(:), reconObj.G, ...
+    1, data, 0, decay_weight, data_ideal, 'niter', niter, 'isave',niter, ...
+    'userfun',@saveImageCalcError, 'userarg', {options});
+clear recon_pcgq_snr;
+% recon_pcgq_snr  = reshape(recon_pcgq_snr, [size(mask)]);
+% figure();
+% imslice(abs(recon_pcgq_snr),'Iterative - SNR weighted');
+% colormap(gray);
+% axis image;
+% title('Model based Itterative reconstruction - SNR weighting');
+% colorbar();
+
+
+
+% Input parameters
+movieName = 'itterativeReconComparison';
+im_size = reconObj.G.arg.Gnufft.arg.st.Nd(1);
+
+% Prepare the new file.
+vidObj = VideoWriter(movieName);
+vidObj.FrameRate = 30;
+open(vidObj);
+
+% Set up initial figure
+fig = figure();
+subplot(3,4,1);raw_coronal = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+subplot(3,4,2);raw_sagital = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+subplot(3,4,3);raw_axial = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+
+subplot(3,4,5);naive_coronal = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+subplot(3,4,6);naive_sagital = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+subplot(3,4,7);naive_axial = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+
+subplot(3,4,9);snr_coronal = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+subplot(3,4,10);snr_sagital = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+subplot(3,4,11);snr_axial = imagesc(zeros(im_size,im_size));
+colormap(gray);axis image;set(gca,'xtick',[]);set(gca,'ytick',[]);caxis([0 3]);
+
+
+error_pcgq_raw = zeros(1,niter);
+error_pcgq_naive = zeros(1,niter);
+error_pcgq_snr = zeros(1,niter);
+resid_pcgq_raw = zeros(1,niter);
+resid_pcgq_naive = zeros(1,niter);
+resid_pcgq_snr = zeros(1,niter);
+for i=1:niter
+    error_pcgq_raw(i) = errors_raw{i,1};
+    error_pcgq_naive(i) = errors_naive{i,1};
+    error_pcgq_snr(i) = errors_snr{i,1};
+    resid_pcgq_raw(i) = errors_raw{i,2};
+    resid_pcgq_naive(i) = errors_naive{i,2};
+    resid_pcgq_snr(i) = errors_snr{i,2};
+end
+allerrors = [error_pcgq_raw; error_pcgq_naive; error_pcgq_snr];
+allresids = [resid_pcgq_raw; resid_pcgq_naive; resid_pcgq_snr];
+max_error = max(allerrors(:));
+min_error = min(allerrors(:));
+max_resid = max(allresids(:));
+min_resid = min(allresids(:));
+for i=1:niter
+    i_str = sprintf('%03.3d',i);
+    a=load(['recon_pcgq_raw_sagital_' i_str '.mat']);set(raw_coronal,'CData',abs(a.im));
+    a=load(['recon_pcgq_raw_coronal_' i_str '.mat']);set(raw_sagital,'CData',abs(a.im));
+    a=load(['recon_pcgq_raw_axial_' i_str '.mat']);set(raw_axial,'CData',abs(a.im));
+    
+    a=load(['recon_pcgq_naive_sagital_' i_str '.mat']);set(naive_coronal,'CData',abs(a.im));
+    a=load(['recon_pcgq_naive_coronal_' i_str '.mat']);set(naive_sagital,'CData',abs(a.im));
+    a=load(['recon_pcgq_naive_axial_' i_str '.mat']);set(naive_axial,'CData',abs(a.im));
+    
+    a=load(['recon_pcgq_snrWeighted_sagital_' i_str '.mat']);set(snr_coronal,'CData',abs(a.im));
+    a=load(['recon_pcgq_snrWeighted_coronal_' i_str '.mat']);set(snr_sagital,'CData',abs(a.im));
+    a=load(['recon_pcgq_snrWeighted_axial_' i_str '.mat']);set(snr_axial,'CData',abs(a.im));
+    
+    subplot(3,4,4);
+    % Just to get legend correct
+    plot(i,100*error_pcgq_raw(i),'-or');hold on;
+    plot(i,100*error_pcgq_naive(i),'-og');
+    plot(i,100*error_pcgq_snr(i),'-ob');
+    
+    % lines
+    plot(1:i,100*error_pcgq_raw(1:i),'-r');
+    plot(1:i,100*error_pcgq_naive(1:i),'-g');
+    plot(1:i,100*error_pcgq_snr(1:i),'-b');
+    
+    % circles
+    plot(i,100*error_pcgq_raw(i),'or');
+    plot(i,100*error_pcgq_naive(i),'og');
+    plot(i,100*error_pcgq_snr(i),'ob');
+    hold off;
+    
+    axis([1 niter 100*min_error 100*max_error]);
+    xlabel('Iteration number');
+    ylabel('Relative Error (%)');
+    legend('raw','amplified','snr weighted');
+    
+    subplot(3,4,8);
+    % Just to get legend correct
+    plot(i,100*resid_pcgq_raw(i),'-or');hold on;
+    plot(i,100*resid_pcgq_naive(i),'-og');
+    plot(i,100*resid_pcgq_snr(i),'-ob');
+    
+    % lines
+    plot(1:i,100*resid_pcgq_raw(1:i),'-r');
+    plot(1:i,100*resid_pcgq_naive(1:i),'-g');
+    plot(1:i,100*resid_pcgq_snr(1:i),'-b');
+    
+    % circles
+    plot(i,100*resid_pcgq_raw(i),'or');
+    plot(i,100*resid_pcgq_naive(i),'og');
+    plot(i,100*resid_pcgq_snr(i),'ob');
+    hold off;
+    
+    axis([1 niter 100*min_resid 100*max_resid]);
+    xlabel('Iteration number');
+    ylabel('Relative Residual (%)');
+    legend('raw','amplified','snr weighted');
+    
+    % Write each frame to the file.
+    writeVideo(vidObj,getframe(fig));
+end
+% Close the file.
+close(vidObj);
+
+% % Model based reconstruction with RF weighting
+% start_guess = recon_pcgq_naive(:,:,:,niter-startIter+1);
+% % clear recon_pcgq_naive;
+% % close all;
+% niter = 30;
+% startIter = 1;
+% recon_pcgq_smart = qpwls_pcg1_snrweighted(start_guess, reconObj.G, ...
+%     1, data, 0, decay_weight, data_ideal, 'niter', niter, 'isave',startIter:niter);
+% recon_pcgq_smart  = reshape(recon_pcgq_smart, [size(mask) niter-startIter+1]);
+% figure();
+% imslice(abs(recon_pcgq_smart),'Iterative - RF weighted');
+% colormap(gray);
+% axis image;
+% title('Model based Itterative reconstruction - RF weighting');
+% colorbar();
+    function error_vals = saveImageCalcError(x, options, iter)
+        x = reshape(x,options.volDims);
+
+        % Calculate squared error.
+        tot_sig = options.ideal_im(:)'*options.ideal_im(:);
+        error_sqr = (x - options.ideal_im);
+        error_sqr = error_sqr(:)' * error_sqr(:);
+        error_sqr = sqrt(error_sqr/tot_sig);
+        
+        if(isfield(options,'w'))
+            resid_sqr = (options.data - options.w.*(options.A*x));
+        else
+            resid_sqr = (options.data - options.A*x);
+        end
+        resid_sqr = resid_sqr(:)' * resid_sqr(:);
+        resid_sqr = sqrt(resid_sqr/tot_sig);
+        error_vals = {error_sqr; resid_sqr};
+        
+        % Save image as .mat
+        iter_str = sprintf('%03.3d',iter);
+        im = squeeze(x(50,:,:));
+        save([options.saveBaseName 'sagital_' iter_str '.mat'],'im');
+        im = squeeze(x(:,66,:));
+        save([options.saveBaseName 'coronal_' iter_str '.mat'],'im');
+        im = squeeze(x(:,:,50));
+        save([options.saveBaseName 'axial_' iter_str '.mat'],'im');
+    end
+end

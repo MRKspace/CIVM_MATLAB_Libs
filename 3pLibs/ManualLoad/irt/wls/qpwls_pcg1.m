@@ -169,7 +169,7 @@ for iter = 1:arg.niter
 	if any(arg.isave == iter)
 		xs(:, arg.isave == iter) = x;
 	end
-	info(iter,:) = arg.userfun(x, arg.userarg{:});
+	info(iter,:) = arg.userfun(x, arg.userarg{:}, iter);
 
 	% check norm(xnew-xold) / norm(xnew) vs threshold
 	if arg.stop_diff_tol && ...
