@@ -136,7 +136,7 @@ if(needsreconObjConstruction)
     K = ceil(N*options.overgridfactor);
     
     % optimize min-max error accross volume
-    reconObj.G = Gmri(inv_scale*traj, true(N), 'fov', N, 'nufft_args', {N,J,K,N/2,'minmax:kb'});
+    reconObj.G = Gmri(inv_scale*traj, true(N), 'fov', N, 'nufft_args', {N,J,K,N/2,'kaiser'});
     clear N K J traj nuft_a;
     
     disp('Itteratively calculating density compensation coefficients...');

@@ -16,7 +16,11 @@ header.ge_header = ge_read_header(pfile_name, revision);
     
 % Calculate trajectories according to pulse sequence
 psdname = header.ge_header.image.psdname';
-[trash_path psdname] = fileparts(psdname);
+lastFilesep = findstr('/',psdname);
+if(~isempty(lastFilesep))
+    lastFilesep = lastFilesep(end);
+    psdname = psdname(lastFilesep+1:end);
+end
 if(~isempty(strfind(psdname,'3dradial')))
     disp('Detected 3dradial squence...');
     
