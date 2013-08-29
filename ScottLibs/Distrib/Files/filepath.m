@@ -16,9 +16,19 @@ if((nargin < 1) || isempty(file_path))
     else
         file_path = strcat(path, file);
     end
- end
+end
 
-% Check that the file exists
-if(~exist(file_path))
+% Check that the file or directory exists
+if(exist(file_path))
+    % If its a directory, start looking from there and ask for a file
+    if(isdir(file_path))
+        [file, path] = uigetfile('*.*', 'Select file',file_path);
+        if(isnumeric(file) & isnumeric(path) & file==0 & path ==0)
+            file_path = [];
+        else
+            file_path = strcat(path, file);
+        end
+    end
+else
     file_path = [];
 end
