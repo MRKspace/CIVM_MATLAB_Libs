@@ -88,7 +88,6 @@ if(isfield(options, 'reconObj'))
         needsreconObjConstruction = 0;
     elseif(~isfield(options, 'exact') || (~options.exact & ~options.reconObj.G.arg.exact))
         N = floor(options.scale*header.MatrixSize)
-        2*round((N-1)/2)+1; % Make sure N is even
         J = [options.nNeighbors options.nNeighbors options.nNeighbors];
         K = ceil(N*options.overgridfactor);
         
@@ -131,12 +130,22 @@ if(needsreconObjConstruction)
     %% Calculate Sample Density Corrections
     inv_scale = 1/options.scale;
     N = floor(options.scale*header.MatrixSize);
-    2*round((N-1)/2)+1; % Make sure N is even
     J = [options.nNeighbors options.nNeighbors options.nNeighbors];
     K = ceil(N*options.overgridfactor);
     
+    %% Throw away data outside the BW
+   throw_away = find((traj(:,1)>0.5) + (traj(:,2)>0.5) + (traj(:,3)>0.5) + ...
+       (traj(:,1)<-0.5) + (traj(:,2)<-0.5) + (traj(:,3)<-0.5));
+   traj(throw_away(:),:)=[];
+   data(throw_away(:))=[];
+    
     % optimize min-max error accross volume
-    reconObj.G = Gmri(inv_scale*traj, true(N), 'fov', N, 'nufft_args', {N,J,K,N/2,'kaiser'});
+    if(isfield(options, 'useAllPts') && options.useAllPts)
+        traj = 0.5*traj;
+        N = 2*N;
+        K = 2*K;
+    end
+    reconObj.G = Gmri(inv_scale*traj, true(N), 'fov', N, 'nufft_args', {N,J,K,N/2,'minmax:kb'});
     clear N K J traj nuft_a;
     
     disp('Itteratively calculating density compensation coefficients...');
