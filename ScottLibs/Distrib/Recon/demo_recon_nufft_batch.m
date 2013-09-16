@@ -9,45 +9,48 @@
 % Start with a clean slate
 clc; clear all; close all;
 
-options.datafilename = '';
-options.overgridfactor = 2;
-options.nNeighbors = 3;
-options.scale = 1;
-options.dcf_iter = 1
+% Define reconstruction options
+datafilename = '';
+overgridfactor = 2;
+nNeighbors = 3;
+scale = 1;
+dcf_iter = 25;
+useAllPts = 1;
    
 % Get a list of all the files to be reconstructed
 files_to_recon = demo_findRadialPFiles();
 
-% Reconstruct first file
-tic;
-options.headerfilename = filepath(files_to_recon{1});
-[recon_vol, header, reconObj] = Recon_Noncartesian(options);
-disp(['Reconstructed file 1 in ' num2str(toc) ' seconds.']);
+% Read first pfile for trajectories and header
+headerfilename = filepath(files_to_recon{1});
+[revision, logo] = ge_read_rdb_rev_and_logo(headerfilename);
+[data, traj, weights, header] = GE_Recon_Prep(headerfilename, ...
+    floor(revision), datafilename);
 
-% Save the reconstruction of the first file
-nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32);
-save_nii(nii,[files_to_recon{1} '_recon.nii'],16);
+% Create reconstruction object
+reconObj = ConjugatePhaseReconstructionObject(traj, header, ...
+    overgridfactor, scale, nNeighbors, useAllPts, dcf_iter);
 
-% Now add the reconObject and run the recon for the other files - this 
-% additional reconstructions will be faster because we don't have to 
-% create the reconstruction object and calculate density compensation. 
+% Now run the recon on all batched files - this is much faster than running
+% the recon separately on each pfile because we don't have to create the 
+% reconstruction object and calculate density compensation each time. 
 % If you are reconstructing multiple similar reconstructions,
-% its much more efficient to run the recon once, save the reconObj, then
-% run it for future reconstructions using the reconObj.
-options.reconObj = reconObj;
-
-% Loop through additional reconstructions
+% its much more efficient to create the reconObj, then perform all similar
+% reconstructions using that object.
 numFilesToRecon = length(files_to_recon);
-for i=2:numFilesToRecon
+for i=1:numFilesToRecon
     % get next file ready
-    options.headerfilename = filepath(files_to_recon{1});
+    headerfilename = filepath(files_to_recon{i});
+    
+    % Read data from next file
+    [data, traj, weights, header] = GE_Recon_Prep(headerfilename, ...
+        floor(revision), datafilename);
 
     % Reconstruct next file
-    [recon_vol, header, reconObj] = Recon_Noncartesian(options);
-    disp(['Reconstructed file ' num2str(i) ' in ' num2str(toc) ' seconds.']);
+    recon_vol = reconObj.reconstruct(data);
+    disp(['Reconstructed file ' num2str(i) '.']);
     
     % Save the reconstruction of the file
     nii = make_nii(abs(recon_vol), [1 1 1], [1 1 1], 32);
-    save_nii(nii,[files_to_recon{1} '_recon_mag.nii'],16);
+    save_nii(nii,[files_to_recon{1} '_recon.nii'],16);
 end
 

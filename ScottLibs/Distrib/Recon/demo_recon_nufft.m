@@ -5,29 +5,35 @@
 clc; clear all; close all;
 
 % Define reconstruction options
-options.headerfilename = filepath();
-% options.datafilename = filepath();
-options.datafilename = '';
-options.overgridfactor = 2;
-options.nNeighbors = 3;
-options.scale = 1;
-options.dcf_iter = 25;
-options.exact = 0; % CAUTION - this will make recon EXTREMELY slow!
-options.exact_dct_iter = 0;
+headerfilename = filepath();
+% datafilename = filepath();
+datafilename = '';
+overgridfactor = 2;
+nNeighbors = 3;
+scale = 1;
+dcf_iter = 25;
+useAllPts = 1;
 
-% Perform reconstruction
-tic;
-[recon_vol, header, reconObj] = Recon_Noncartesian(options);
-initial_recon_time = toc
+% Read in the file and prepare for generic reconstruction
+[revision, logo] = ge_read_rdb_rev_and_logo(headerfilename);
+[data, traj, weights, header] = GE_Recon_Prep(headerfilename, ...
+    floor(revision), datafilename);
+
+% Create reconstruction object
+reconObj = ConjugatePhaseReconstructionObject(traj, header, ...
+    overgridfactor, scale, nNeighbors, useAllPts, dcf_iter);
+
+% Reconstruct data
+recon_vol = reconObj.reconstruct(data);
 
 % Filter
-% recon_vol = FermiFilter(recon_vol,0.1/options.scale, 0.85/options.scale);
+% recon_vol = FermiFilter(recon_vol,0.1/scale, 0.85/scale);
 
 %Show output
 figure();
 imslice(abs(recon_vol),'Reconstruction');
 
-% Save volume
+% % Save volume
 nii = make_nii(abs(recon_vol));
 save_nii(nii, 'recon_vol.nii', 16);
 
