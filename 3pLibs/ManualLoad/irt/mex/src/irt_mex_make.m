@@ -2,8 +2,7 @@
 
 if ispc
         cd penalty
-        mex penalty_mex.c ../def/mexarg.c 'penalty,diff.c' -DIs_pc -DMmex
--outdir ../../v7
+        mex penalty_mex.c ../def/mexarg.c 'penalty,diff.c' -DIs_pc -DMmex -outdir ../../v7
         cd ..
 else
         cd penalty
