@@ -4,9 +4,9 @@ classdef ConjugatePhaseReconstructionObject < AbstractReconstructionObject
     end
     
     methods
-        function obj = ConjugatePhaseReconstructionObject(traj, header, overgridfactor, scale, nNeighbors, useAllPoints, dcf_iter)
+        function obj = ConjugatePhaseReconstructionObject(traj, N, J, K, dcf_iter)
             % Call super constructor to build recon obj
-            obj = obj@AbstractReconstructionObject(traj, header, overgridfactor, scale, nNeighbors, useAllPoints);
+            obj = obj@AbstractReconstructionObject(traj, N, J, K);
             
             % Calculate Density compenstion
             obj = obj.calculateDCF(dcf_iter);
