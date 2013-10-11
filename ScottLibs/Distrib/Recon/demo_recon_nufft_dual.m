@@ -2,7 +2,7 @@
 clc; clear all; close all;
 
 % Define reconstruction options
-headerfilename = filepath('C:\Users\ScottHaileRobertson\Desktop\demo_organizer\organized\SUBJECT_002-043_6982_201307161332\5_DUAL\P08192.7');
+headerfilename = filepath();
 % datafilename = filepath();
 datafilename = '';
 overgridfactor = 2;
@@ -14,11 +14,27 @@ useAllPts = 1;
 % Read Dual Pfile
 [revision, logo] = ge_read_rdb_rev_and_logo(headerfilename);
 [gas_data, dissolved_data, traj, gas_weights, dissolved_weights, header] ...
-    = GE_Recon_Prep_Dual(headerfilename, revision, datafilename);
+    = GE_Recon_Prep_Dual(headerfilename, floor(revision), datafilename);
+
+inv_scale = 1/scale;
+N = floor(scale*header.MatrixSize);
+if(useAllPts)
+    traj = 0.5*traj;
+    N = 2*N;
+end
+traj = traj*inv_scale;
+J = [nNeighbors nNeighbors nNeighbors];
+K = ceil(N*overgridfactor);
+
+%% Throw away data outside the BW
+throw_away = find((traj(:,1)>0.5) + (traj(:,2)>0.5) + (traj(:,3)>0.5) + ...
+    (traj(:,1)<-0.5) + (traj(:,2)<-0.5) + (traj(:,3)<-0.5));
+traj(throw_away(:),:)=[];
+data(throw_away(:))=[];
+weights(throw_away(:))=[];
 
 % Create reconstruction object
-reconObj = ConjugatePhaseReconstructionObject(traj, header, ...
-    overgridfactor, scale, nNeighbors, useAllPts, dcf_iter);
+reconObj = ConjugatePhaseReconstructionObject(traj, N, J, K, dcf_iter);
 
 % Reconstruct gas data
 recon_vol_gas = reconObj.reconstruct(gas_data);

@@ -26,9 +26,25 @@ headerfilename = filepath(files_to_recon{1});
 [data, traj, weights, header] = GE_Recon_Prep(headerfilename, ...
     floor(revision), datafilename);
 
+inv_scale = 1/scale;
+N = floor(scale*header.MatrixSize);
+if(useAllPts)
+    traj = 0.5*traj;
+    N = 2*N;
+end
+traj = traj*inv_scale;
+J = [nNeighbors nNeighbors nNeighbors];
+K = ceil(N*overgridfactor);
+
+%% Throw away data outside the BW
+throw_away = find((traj(:,1)>0.5) + (traj(:,2)>0.5) + (traj(:,3)>0.5) + ...
+    (traj(:,1)<-0.5) + (traj(:,2)<-0.5) + (traj(:,3)<-0.5));
+traj(throw_away(:),:)=[];
+data(throw_away(:))=[];
+weights(throw_away(:))=[];
+
 % Create reconstruction object
-reconObj = ConjugatePhaseReconstructionObject(traj, header, ...
-    overgridfactor, scale, nNeighbors, useAllPts, dcf_iter);
+reconObj = ConjugatePhaseReconstructionObject(traj, N, J, K, dcf_iter);
 
 % Now run the recon on all batched files - this is much faster than running
 % the recon separately on each pfile because we don't have to create the 
