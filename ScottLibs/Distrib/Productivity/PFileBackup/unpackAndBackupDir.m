@@ -30,8 +30,25 @@ if(needs_organizeddir)
     organized_dir = uigetdir('.','Select organized dir')
 end
 
-% tmp_import_dir = 'E:\pfiles\import';
-% backup_script = 'E:\scripts\backupPfiles.exe';
+% Change to the temp dir to keep things clean
+starting_dir = pwd();
+cd(tmp_import_dir);
+
+% Check if the computer has the ability to softlink
+if(ispc)
+    [status path] = system('where ln');
+else
+    [status path] = system('which ln');
+end
+can_softlink = ~status; % if successful, status=0
+
+% Check if the computer has the ability to perform md5sums
+if(ispc)
+    [status path] = system('where md5sum');
+else
+    [status path] = system('which md5sum');
+end
+can_md5sum = ~status; % if successful, status=0
 
 % Make sure its a directory that exists
 assertExistence(dir_to_backup);
@@ -65,8 +82,8 @@ if(size(dir_pfiles,1)>0)
     
     
     % Back up all Pfiles
-%     system(backup_script);
-	backupPfiles(tmp_import_dir, organized_dir);
+    %     system(backup_script);
+    backupPfiles(tmp_import_dir, organized_dir, can_softlink, can_md5sum);
 end
 
 % Loop through everything in the directory and deal with it
@@ -95,6 +112,7 @@ for i=1:numElements
                 untar(cur_element,tmp_dir);
                 
                 % Deal with files
+                disp(['Recursing in ' cur_element]);
                 unpackAndBackupDir(tmp_dir,tmp_import_dir, organized_dir);
                 
                 % Delete tmp dir
@@ -106,6 +124,7 @@ for i=1:numElements
                 
                 % Unzip files
                 unzip(cur_element,tmp_dir);
+                disp(['Recursing in ' cur_element]);
                 
                 % Deal with files
                 unpackAndBackupDir(tmp_dir,tmp_import_dir, organized_dir);
@@ -120,6 +139,10 @@ for i=1:numElements
     end
     
 end
+
+% Go back to starting dir
+cd(starting_dir);
+
 end
 
 function assertExistence(filename)

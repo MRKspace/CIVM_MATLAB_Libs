@@ -4,27 +4,27 @@ use warnings;
 
 #Write matlab for rdb_header_rec
 my $c_def_file = 'rdbm.h';
-my $rdb_header_rec_start    = ".*typedef struct _RDB_HEADER_REC.*";
-my $rdb_header_rec_end      = ".*} RDB_HEADER_REC.*";
+my $rdb_header_rec_start    = '.*typedef\s*struct\s*_RDB_HEADER_REC.*';
+my $rdb_header_rec_end      = '.*}\s*RDB_HEADER_REC.*';
 my $rdb_header_rec_function = "ge_read_rdb_header_rec";
 &writeMatlabParserFunc($c_def_file, $rdb_header_rec_function, $rdb_header_rec_start, $rdb_header_rec_end);
 
 #Write matlab for exam header
 $c_def_file = 'imagedb.h';
-my $exam_header_start    = ".*typedef struct _EXAMDATATYPE.*";
-my $exam_header_end      = ".*}  EXAMDATATYPE.*";
+my $exam_header_start    = '.*typedef\s*struct\s*_EXAMDATATYPE.*';
+my $exam_header_end      = '.*}\s*EXAMDATATYPE.*';
 my $exam_header_function = "ge_read_exam_header";
 &writeMatlabParserFunc($c_def_file, $exam_header_function, $exam_header_start, $exam_header_end);
 
 #Write matlab for series header
-my $series_header_start    = ".*typedef struct _SERIESDATATYPE.*";
-my $series_header_end      = ".*}  SERIESDATATYPE.*";
+my $series_header_start    = '.*typedef\s*struct\s*_\s*SERIESDATATYPE.*';
+my $series_header_end      = '.*}\s*SERIESDATATYPE.*';
 my $series_header_function = "ge_read_series_header";
 &writeMatlabParserFunc($c_def_file, $series_header_function, $series_header_start, $series_header_end);
 
 #Write matlab for series header
-my $image_header_start    = ".*typedef struct _MRIMAGEDATATYPE.*";
-my $image_header_end      = ".*}  MRIMAGEDATATYPE.*";
+my $image_header_start    = '.*typedef\s*struct\s*_MRIMAGEDATATYPE.*';
+my $image_header_end      = '.*}\s*MRIMAGEDATATYPE.*';
 my $image_header_function = "ge_read_image_header";
 &writeMatlabParserFunc($c_def_file, $image_header_function, $image_header_start, $image_header_end);
 print "DONE!\n";
@@ -51,7 +51,8 @@ my %type_conversions = (	"int" => "int32",
 				"DIMXYTYPE" => "float32",
 				"PIXSIZETYPE" => "float32",
 				"char*" => "int32",
-				"IMATRIXTYPE" => "int16"); 
+				"IMATRIXTYPE" => "int16",
+				"VARTYPE" => "double"); 
 
 my $looking_in_right_place = 0; 
 my $still_commenting = 0;
@@ -77,6 +78,7 @@ print WRITEFILE "$struct_base = struct(\'base_p_file\',pfile_name);\n";
 open (READFILE, "<" . $c_def_file) or die $!;
 while(my $line = <READFILE>){
 	#Only read data structure between definition and end of definition
+
 	if($line =~ m/$start_text/){
 		#Finds the start of the data structure
 		$looking_in_right_place = 1;
@@ -151,7 +153,7 @@ while(my $line = <READFILE>){
 						}
 						print WRITEFILE "\n";		
 					}else{
-						print WRITEFILE "NO CONVERSION FOR $c_type<END>    LINE:$line<END>\n";
+						print WRITEFILE "NO CONVERSION FOR $c_type LINE:$line\n";
 					}
 				}	
 			}
@@ -180,7 +182,7 @@ sub parseCLine{
 		$comment_line = 0;
 	}
 	
-	my $c_types = "unsigned\\s|int\\s|short\\s|long\\s|float\\s|char\\s|RDB_MULTI_RCV_TYPE\\s|ATOMIC\\s|BLOCK\\s|double\\s|RASPOINT\\s|DIMXYTYPE\\s|PIXSIZETYPE\\s|char\\*\\s|IMATRIXTYPE\\s|"; 
+	my $c_types = "unsigned\\s|int\\s|short\\s|long\\s|float\\s|char\\s|RDB_MULTI_RCV_TYPE\\s|ATOMIC\\s|BLOCK\\s|double\\s|RASPOINT\\s|DIMXYTYPE\\s|PIXSIZETYPE\\s|char\\*\\s|IMATRIXTYPE\\s|VARTYPE\\s|"; 
 	
 	#Check if its a comment
 	my $is_comment = ($line =~ m/^\s*\/\*(.*)/);

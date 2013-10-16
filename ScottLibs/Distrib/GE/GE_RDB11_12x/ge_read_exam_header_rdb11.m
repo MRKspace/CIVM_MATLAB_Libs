@@ -18,11 +18,11 @@ fseek(fid,offset,'bof');
 
 strct = struct('base_p_file',pfile_name);
 strct = setfield(strct, 'firstaxtime', fread(fid,1,'double',byte_order)); % Start time(secs) of first axial in exam
-strct = setfield(strct, 'ex_series', fread(fid,3*1,'char',byte_order)); % Series Keys for this Exam
-strct = setfield(strct, 'ex_unseries', fread(fid,3*1,'char',byte_order)); % Unstored Series Keys for this Exam
-strct = setfield(strct, 'ex_toarchive', fread(fid,3*1,'char',byte_order)); % Unarchived Series Keys for this Exam
-strct = setfield(strct, 'ex_prosp', fread(fid,3*1,'char',byte_order)); % Prospective/Scout Series Keys for this Exam
-strct = setfield(strct, 'ex_models', fread(fid,3*1,'char',byte_order)); % ThreeD Model Keys for Exam
+strct = setfield(strct, 'ex_series', fread(fid,1,'double',byte_order)); % Series Keys for this Exam
+strct = setfield(strct, 'ex_unseries', fread(fid,1,'double',byte_order)); % Unstored Series Keys for this Exam
+strct = setfield(strct, 'ex_toarchive', fread(fid,1,'double',byte_order)); % Unarchived Series Keys for this Exam
+strct = setfield(strct, 'ex_prosp', fread(fid,1,'double',byte_order)); % Prospective/Scout Series Keys for this Exam
+strct = setfield(strct, 'ex_models', fread(fid,1,'double',byte_order)); % ThreeD Model Keys for Exam
 strct = setfield(strct, 'zerocell', fread(fid,1,'float32',byte_order)); % Cell number at theta
 strct = setfield(strct, 'cellspace', fread(fid,1,'float32',byte_order)); % Cell spacing
 strct = setfield(strct, 'srctodet', fread(fid,1,'float32',byte_order)); % Distance from source to detector
