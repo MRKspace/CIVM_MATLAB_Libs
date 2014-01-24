@@ -8,8 +8,12 @@ classdef BackupBySubject < Backupable
             % Get subject id
             subject_id = strtrim(deblank(header.exam.patid'));
             subject_id2 = strtrim(deblank(header.exam.patname'));
-            if(isempty(subject_id) && ~isempty(subject_id2))
-                subject_id = subject_id2;
+            if(~isempty(subject_id2))
+                if(isempty(subject_id))
+                    subject_id = subject_id2;
+                else
+                    subject_id = [subject_id '_' subject_id2];
+                end
             end
             
             % Make sure subject id fits naming convention
