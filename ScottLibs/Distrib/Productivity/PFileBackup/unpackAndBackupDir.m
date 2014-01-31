@@ -208,7 +208,8 @@ cd(starting_dir);
 end
 
 function does_exist = assertExistence(filename)
-if(~exist(filename))
+does_exist = exist(filename)
+if(~does_exist)
     warning(['Does not exist:' filename]);
 end
 end
