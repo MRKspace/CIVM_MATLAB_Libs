@@ -150,7 +150,7 @@ classdef Backupable
                 regexp_result =  regexp(cur_file,...
                     ['.*' filesep() 'P.*7\((.*)\)'],'tokens');
                 if(~isempty(regexp_result))
-                    regexp_result = str2num(regexp_result{1});
+                    regexp_result = str2num(regexp_result{1}{:});
                 else
                     regexp_result = 1; % Assume its the first version
                 end
@@ -167,7 +167,7 @@ classdef Backupable
             end
             
             % Create new filename with version number
-            newFullPath = [dir_name file_name '(' lowest_version ')'];
+            newFullPath = [dir_name file_name '(' num2str(lowest_version) ')'];
         end
     end
     
