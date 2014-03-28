@@ -10,7 +10,7 @@ headerfilename = filepath();
 datafilename = '';
 overgridfactor = 2;
 nNeighbors = 3;
-scale = 1;
+scale = [1 1 1]; % Scales the matrix dimmensions
 dcf_iter = 25;
 useAllPts = 1;
 
@@ -19,13 +19,18 @@ useAllPts = 1;
 [data, traj, weights, header] = GE_Recon_Prep(headerfilename, ...
     floor(revision), datafilename);
 
-inv_scale = 1/scale;
-N = floor(scale*header.MatrixSize);
+inv_scale = 1./scale;
+N = header.MatrixSize;
+for i=1:length(N)
+    N(i) = max(floor(N(i)*scale(i)),1);
+end
 if(useAllPts)
     traj = 0.5*traj;
     N = 2*N;
 end
-traj = traj*inv_scale;
+for i=1:length(N)
+    traj(:,i) = traj(:,i)*inv_scale(i);
+end
 J = [nNeighbors nNeighbors nNeighbors];
 K = ceil(N*overgridfactor);
 
