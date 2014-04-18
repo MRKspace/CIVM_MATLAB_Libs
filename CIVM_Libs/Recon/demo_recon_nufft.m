@@ -5,7 +5,17 @@
 clc; clear all; close all;
 
 % Define reconstruction options
-headerfilename = filepath();
+if(exist('~/.matlab_recon_prefs.mat'))
+	load('~/.matlab_recon_prefs.mat');
+end
+
+% Get pfile
+if(exist('pfile_root_dir','var'))
+	headerfilename = filepath(pfile_root_dir);
+else
+	headerfilename = filepath();
+end
+
 % datafilename = filepath();
 datafilename = '';
 overgridfactor = 2;
