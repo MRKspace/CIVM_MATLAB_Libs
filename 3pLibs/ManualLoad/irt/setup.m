@@ -31,7 +31,6 @@ if irtdir(end) ~= filesep % make sure there is a '/' at end of directory
 end
 
 addpath([irtdir 'align']);		% image registration
-addpath([irtdir 'align/mex']);		% image registration mex files
 addpath([irtdir 'blob']);		% blob (KB) basis
 addpath([irtdir 'ct']);			% x-ray CT (polyenergetic) recon
 % addpath([irtdir 'data']);		% example data

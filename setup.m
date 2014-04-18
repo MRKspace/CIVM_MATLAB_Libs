@@ -1,6 +1,3 @@
-% Restore default path
-restoredefaultpath();
-
 rootDistribDir = pwd();
 
 % Load 3p libs
@@ -15,7 +12,7 @@ clear irtdir;
 
 % Load my personal libs
 disp('Loading Distributed Libs...');
-path(genpath([rootDistribDir filesep() 'ScottLibs' filesep() 'Distrib']),path);
+path(genpath([rootDistribDir filesep() 'CIVM_Libs' ]),path);
 
 % Compile Fesslers MEX code
 disp('Compiling Fesslers Mex code...');
