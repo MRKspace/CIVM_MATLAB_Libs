@@ -53,7 +53,16 @@ rad_traj  = calc_radial_traj_distance(header.ge_header);
 primeplus = header.ge_header.rdb.rdb_hdr_user23;
 frameSize = header.ge_header.rdb.rdb_hdr_frame_size;
 header.MatrixSize = [frameSize frameSize frameSize];
-traj = calc_archimedian_spiral_trajectories(nframes, primeplus, rad_traj)';
+
+per_nufft = header.ge_header.rdb.rdb_hdr_user32;
+%     if ( per_nufft == 1)
+         traj = calc_archimedian_spiral_trajectories(nframes, primeplus, rad_traj)';
+%     end
+%     if (per_nufft == 0)
+%         traj = calc_golden_mean_trajectories(nframes, rad_traj)';
+%         mess=sprintf('\nUsing Golden means\n');
+%         disp(mess);
+%     end
 
 % Undo loopfactor from data and trajectories
 % (not necessary, but nice if you want to plot fids)
@@ -63,15 +72,47 @@ new_idx = mod((old_idx-1)*loop_factor,nframes)+1;
 data(:,old_idx) = data(:,new_idx);
 traj = reshape(traj, [npts, nframes 3]);
 traj(:,old_idx, :) = traj(:,new_idx,:);
-traj = reshape(traj,[npts*nframes 3]);
-clear old_idx new_idx;
 
+% %% Option 1
+% n_dc_points = sum(rad_traj==0);
+% data = data(n_dc_points:npts,:);
+% traj = traj(n_dc_points:npts,:,:);
+% npts = npts - n_dc_points + 1;
+% 
+% % Calculate weights based on RF decay
+% weights = repmat(abs(data(1,:)),[npts 1]);
+% weights = weights/max(weights(:));
+
+% dc_remove = find(rad_traj>0,1)-2;
+% data(1:dc_remove,:)=[];
+% traj(1:dc_remove,:,:)=[];
+
+%% Option2 
 % Calculate weights based on RF decay
 n_dc_points = sum(rad_traj==0);
 weights = repmat(abs(mean(data(1:n_dc_points,:))),[npts 1]);
+% weights = repmat(abs(data(1,:)),[npts-n_dc_points+1 1]);
 weights = weights/max(weights(:));
+
+% figure();
+% surf(abs(data));
+% shading interp;
+% colormap(jet);
+% xlabel('View Number');
+% ylabel('Sample Number');
+% zlabel('Magnitude');
+% view([121 56])
+
+% traj = reshape(traj,[(npts-n_dc_points+1)*nframes 3]);
+traj = reshape(traj,[npts*nframes 3]);
+clear old_idx new_idx;
 
 data = data(:);
 weights = weights(:);
+
+if(any(real(data(:))>=32767) || any(imag(data(:))>=32767))
+	h = warndlg('Maximum values exist - overrange was likely!','!! Warning !!');
+	uiwait(h);
+end
 
 end

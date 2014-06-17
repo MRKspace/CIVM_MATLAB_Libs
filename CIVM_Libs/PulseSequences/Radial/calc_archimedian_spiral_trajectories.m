@@ -33,9 +33,38 @@ zs = z_coords.*ivec_lengths;
 thetas = acos(zs);
 phis = atan2(y_coords,x_coords);
 
-kx = rad*(sin(thetas).*cos(phis)); %x-coordinates of rays
-ky = rad*(sin(thetas).*sin(phis)); %y-coordinates of rays
-kz = rad*(cos(thetas)); %z-coordinates of rays
+dx = (sin(thetas).*cos(phis));
+dy = (sin(thetas).*sin(phis));
+dz = (cos(thetas));
+
+% i_amp = 9883;
+% temp = floor(i_amp*[dx;dy;dz]')/i_amp;
+% load('gradscales.mat');
+% gradscales(:,3) = floor(i_amp*gradscales(:,3).*((2*(is'<=cview))-1))/i_amp;
+% % plot3(gradscales(:,1),gradscales(:,2),gradscales(:,3),'.r');
+% % hold on;
+% % plot3(temp(:,1),temp(:,2),temp(:,3),'.b');
+% % hold off;
+% 
+% diff_scales = gradscales - temp;
+% % figure();
+% % plot(diff_scales(:,1),'-r');
+% % hold on;
+% % plot(diff_scales(:,2),'-g');
+% % plot(diff_scales(:,3),'-b');
+% % hold off;
+% % legend('X error','Y error','Z error');
+% % xlabel ('View number');
+% % ylabel('Error');
+% 
+% % override calculated values
+% dx = gradscales(:,1)';
+% dy = gradscales(:,2)';
+% dz = gradscales(:,3)';
+
+kx = rad*dx; %x-coordinates of rays
+ky = rad*dy; %y-coordinates of rays
+kz = rad*dz; %z-coordinates of rays
 
 kspace_traj(1,:) = kx(:);
 kspace_traj(2,:) = ky(:);

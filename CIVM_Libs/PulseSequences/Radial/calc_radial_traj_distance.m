@@ -20,7 +20,8 @@ function [rad_dist, gradient_dist, ideal_dist] = calc_radial_traj_distance(heade
 % Pull relevant info from header
 bw = header.rdb.rdb_hdr_user12;                 % Receiver bandwidth (kHz)
 grad_delay_time = header.rdb.rdb_hdr_user22;    % Time between ADC on and start of gradient ramp
-ramp_time = header.rdb.rdb_hdr_user1;           % Time to ramp gradients
+ramp_time = header.rdb.rdb_hdr_user1/1000;           % Time to ramp gradients
+% ramp_time = header.rdb.rdb_hdr_user1;           % Time to ramp gradients
 npts = header.rdb.rdb_hdr_frame_size;           % Number of sample points per frame/ray
 dwell_time = 1/(2*bw);                                             % Time between each sample
 dwell_time = nearestMultipleOf(dwell_time,0.002); % Dwell time must be an integer multible of 2us
@@ -33,8 +34,14 @@ if(header.rdb.rdb_hdr_user21 == 1400)
 end
 grad_delay_time = floor(grad_delay_time/0.004)*0.004; % gradient times must be integer multiples of 4us
 
-% Shivs magic number... no clue why
-% grad_delay_time = 0.132;
+% Here you need to add extra_toff_points*dwell time to the grad delay
+% extra_toff_points = header.rdb.rdb_hdr_user41; % Typically 2
+extra_toff_points = 2;
+grad_delay_time = grad_delay_time + extra_toff_points*dwell_time
+grad_delay_time = 0.099
+% grad_delay_time = 0.042 % For rohan s 2T work
+% load('toff.mat');
+% grad_delay_time = toff
 grad_delay_time
 
 % Put everything in pixel units rather than time
@@ -43,8 +50,11 @@ ramp_start_pt = grad_delay_npts; % Can handle negative gradient start times
 grad_delay_npts = max(grad_delay_npts,0);
 
 %Calculate ramp time based on code from EPIC
+% ramp_npts = 1;
+% ramp_time = ramp_npts*dwell_time;
 ramp_time = floor(ramp_time/0.002)*0.002; % Force ramp time to be a multiple of 2us
-ramp_npts = ramp_time/dwell_time; % Recalculate number of points on ramp with rampt time forced to have multiple of 2us
+ramp_npts = ceil(ramp_time/dwell_time); % Recalculate number of points on ramp with rampt time forced to have multiple of 2us
+ramp_time = ramp_npts*dwell_time;
 
 pts_vec = [0:(npts-1)]';                                       % Sample point (time) vector
 

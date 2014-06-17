@@ -9,18 +9,20 @@ if(exist('~/.matlab_recon_prefs.mat'))
 	load('~/.matlab_recon_prefs.mat');
 end
 
-% Get pfile
-if(exist('pfile_root_dir','var'))
-	headerfilename = filepath(pfile_root_dir)
-else
-	headerfilename = filepath()
-end
+% % Get pfile
+% if(exist('pfile_root_dir','var'))
+% 	headerfilename = filepath(pfile_root_dir)
+% else
+% 	headerfilename = filepath()
+% end
+% headerfilename = filepath('/home/scott/Public/pfiles/20140616/');
+headerfilename = filepath('/home/scott/Public/pfiles/20140613/');
 datafilename = '';
 overgridfactor = 2;
 nNeighbors = 3;
-scale = 1*[1 1 1]% Scales the matrix dimmensions
-dcf_iter = 25;
-useAllPts = 1;
+scale = 0.5*[1 1 1]% Scales the matrix dimmensions
+dcf_iter = 10;
+useAllPts = 0;
 
 % Read in the file and prepare for generic reconstruction
 [revision, logo] = ge_read_rdb_rev_and_logo(headerfilename);
@@ -41,6 +43,10 @@ title_vals = {
 	['opslthick=' num2str(header.ge_header.rdb.rdb_hdr_user11) ]
 	['oprbw=' num2str(header.ge_header.rdb.rdb_hdr_user12) ]
 	['loprewind=' num2str(header.ge_header.rdb.rdb_hdr_user15) ]
+	['loprewindscale=' num2str(header.ge_header.rdb.rdb_hdr_user19) ]
+	['spgr_flag=' num2str(header.ge_header.rdb.rdb_hdr_user4) ]
+	['phase_offset=' num2str(header.ge_header.rdb.rdb_hdr_user25) ]
+	['phase_offset_r=' num2str(header.ge_header.rdb.rdb_hdr_user26) ]
 	['fov=' num2str(header.ge_header.image.dfov) ]
 	['psd_toff2=' num2str(header.ge_header.rdb.rdb_hdr_user22) ]
 	['ia_gxw=' num2str(header.ge_header.rdb.rdb_hdr_user27) ]
@@ -58,6 +64,9 @@ title_vals = {
 	['tdaq_filt=' num2str(header.ge_header.rdb.rdb_hdr_user43) ]
 	['npts_filt=' num2str(header.ge_header.rdb.rdb_hdr_user44) ]
 	['tsp_filt=' num2str(header.ge_header.rdb.rdb_hdr_user45) ]
+	['TG=' num2str(header.ge_header.rdb.rdb_hdr_ps_mps_tg) ]
+	['R1=' num2str(header.ge_header.rdb.rdb_hdr_ps_mps_r1) ]
+	['R2=' num2str(header.ge_header.rdb.rdb_hdr_ps_mps_r2) ]
 	};
 ntitStr = length(title_vals);
 title_str = title_vals{1};
@@ -80,7 +89,6 @@ end
 J = [nNeighbors nNeighbors nNeighbors];
 K = ceil(N*overgridfactor);
 
-
 %% Throw away data outside the BW
 throw_away = find((traj(:,1)>0.5) + (traj(:,2)>0.5) + (traj(:,3)>0.5) + ...
 	(traj(:,1)<-0.5) + (traj(:,2)<-0.5) + (traj(:,3)<-0.5));
@@ -93,7 +101,7 @@ reconObj = ConjugatePhaseReconstructionObject(traj, N, J, K, dcf_iter);
 
 % Reconstruct data
 recon_vol = reconObj.reconstruct(data);
-phase_vol = unwrap_phase_laplacian(angle(recon_vol));
+% phase_vol = unwrap_phase_laplacian(angle(recon_vol));
 % fft_vol = fftshift(fftn(recon_vol));
 
 %Show output
