@@ -89,10 +89,10 @@ traj(:,old_idx, :) = traj(:,new_idx,:);
 % traj(1:dc_remove,:,:)=[];
 
 % Throw away data that is not on ramp
-bad_pts = rad_traj <= 0;
-data(bad_pts,:)=[];
-traj(bad_pts,:,:)=[];
-npts = size(data,1);
+% bad_pts = rad_traj < 0;
+% data(bad_pts,:)=[];
+% traj(bad_pts,:,:)=[];
+% npts = size(data,1);
 header.ge_header.rdb.rdb_hdr_frame_size = npts;%view points
 
 

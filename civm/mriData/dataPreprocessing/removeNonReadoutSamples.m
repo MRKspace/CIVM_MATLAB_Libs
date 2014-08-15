@@ -1,0 +1,54 @@
+% This function removes data that was sampled after the decay ramp
+%
+% Note #1: This function assumes that the data is in matrix form [npts x nframes]
+%
+% Usage: [correctedData, header] = removeNonReadoutSamples(rawData, header)
+%
+% Author: Scott Haile Robertson
+% Date: 8/10/2014
+%
+function [correctedRadialTraj, correctedData, header] = removeNonReadoutSamples(radialTraj, data, header)
+% Pull relavent info out of header
+bw = header.rdb.rdb_hdr_user12;                 % Receiver bandwidth (kHz)
+dwell_time = 1/(2*bw);                                             % Time between each sample
+dwell_time = nearestMultipleOf(dwell_time,0.002); % Dwell time must be an integer multible of 2us
+grad_delay_time = header.rdb.rdb_hdr_user22;    % Time between ADC on and start of gradient ramp
+ramp_time = header.rdb.rdb_hdr_user1;           % Time to ramp gradients
+decay_time = header.rdb.rdb_hdr_user38;
+plat_time = header.rdb.rdb_hdr_user44;
+npts = header.rdb.rdb_hdr_frame_size;
+
+% Put everything in pixel units rather than time
+grad_delay_npts = grad_delay_time/dwell_time;
+ramp_npts = ramp_time/dwell_time;
+plat_npts = plat_time/dwell_time;
+decay_npts = decay_time/dwell_time;
+
+% Create sample vector
+pts_vec = [0:(npts-1)]';
+
+% Calculate sample number of each region boundary
+ramp_start_pt = grad_delay_npts; % Can handle negative gradient start times
+plateau_start_pt = ramp_start_pt + ramp_npts;
+decay_start_pt = plateau_start_pt + plat_npts;
+decay_end_pt = decay_start_pt + decay_npts;
+
+% Check if there are sample points after the decay ramp
+start_nonreadout_pts = ceil(decay_end_pt);
+correctedRadialTraj = radialTraj;
+correctedData = data;
+if(start_nonreadout_pts < npts)
+	% Warn user that we sampled post decay ramp
+	h = warndlg(['Data was sampled beyone the readout trapezoid... ' ...
+		'throwing away ' num2str(npts - start_nonreadout_pts) ' samples. '...
+		'Please decrease the number of points to avoid this.'],'!! Warning !!');
+	uiwait(h);
+	
+	% Remove data and radial traj that occur after decay ramp
+	correctedRadialTraj(start_nonreadout_pts:end) = [];
+	correctedData(start_nonreadout_pts:end,:)=[];
+	
+	% Update header to keep it in sync with data
+	header.rdb.rdb_hdr_frame_size = start_nonreadout_pts-1;
+end
+end
