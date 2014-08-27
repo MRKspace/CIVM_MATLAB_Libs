@@ -25,7 +25,7 @@
  *  NOTE #1: You must compile with the -largeArrayDims option to enable
  *           the creation of sparse matrices
  *
- *  NOTE #2: compiling in debug mode (mex -g grid_conv_mex.c) turns on error
+ *  NOTE #2: compiling in debug mode (mex -g sparse_gridding_distance.c) turns on error
  *           checking of inputs. I recommend that you compile in debug mode
  *           to ensure that you are passing input arguments correctly, then
  *           recompile without debug mode once you have it wired correctly and
@@ -66,13 +66,13 @@ double max(double a, double b) {
  * point's value. The recursion allows for n-dimmensional data           *
  * reconstruction.                                                       */
 void grid_point(double *sample_loc, unsigned int *idx_convert,
-		double kernel_halfwidth_sqr, unsigned int ndims,
+		unsigned int ndims,
 		unsigned int cur_dim, unsigned int *bounds,
-		unsigned int *seed_pt, double kern_dist_sq,
+		unsigned int *seed_pt, double kern_dist,
 		unsigned int *output_dims, unsigned int sample_index,
-		unsigned int *n_nonsparse_entries, 
-		double *sparse_sample_indices, 
-		double *sparse_voxel_indices, 
+		unsigned int *n_nonsparse_entries,
+		double *sparse_sample_indices,
+		double *sparse_voxel_indices,
 		double *sparse_distances){
 	
 	/* DEFINITIONS */
@@ -82,7 +82,7 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 	unsigned int upper;
 	unsigned int idx_;
 	unsigned int kern_idx;
-	double new_kern_dist_sq;
+	double new_kern_dist;
 	
 	lower = bounds[2 * cur_dim];
 	upper = bounds[2 * cur_dim + 1];
@@ -91,67 +91,60 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 		/* UPDATE SEED PT FOR RECURSIVE LOOPS */
 		seed_pt[cur_dim]=i;
 		
-		new_kern_dist_sq = ((double)i-sample_loc[cur_dim]);
-		new_kern_dist_sq *= new_kern_dist_sq; // square it
-		new_kern_dist_sq += kern_dist_sq;     // add to growing sum
+		new_kern_dist = ((double)i-sample_loc[cur_dim]);
 		
-		if(cur_dim > 0){
-#ifdef DEBUG
-			printf("\tRecursing dim %u - gridding [",cur_dim+1, seed_pt[0],seed_pt[1],seed_pt[2]);
-			for(j=0; j<ndims; j++){
-				if(j < cur_dim){
-					printf("%u:%u",bounds[2*j],bounds[2*j+1]);
-				} else {
-					printf("%u",seed_pt[j]);
-				}
-				if(j < (ndims-1)){
-					printf(",");
-				}
-			}
-			printf("]\n");
-#endif
+// 		if(new_kern_dist <= kernel_halfwidth){
+// #ifdef DEBUG
+// 			printf("\tVoxel [%u, %u, %u] (index %u) is within support region (%f<=%f) of sample point [%u, %u, %u] (index %u), adding it to nonsparse entries!\n",
+// 					seed_pt[0],seed_pt[1],seed_pt[2], idx_, new_kern_dist,kernel_halfwidth,sample_loc[0],sample_loc[1],sample_loc[2], sample_index);
+// #endif
 			
-			// RECURSE THROUGH OTHER DIMMENSIONS
-			grid_point(sample_loc, idx_convert, kernel_halfwidth_sqr, ndims, cur_dim-1,
-					bounds, seed_pt, new_kern_dist_sq, output_dims, sample_index,
-					n_nonsparse_entries,sparse_sample_indices, 
-					sparse_voxel_indices, sparse_distances);
-		}else{
-			// THIS IS THE SMALLEST DIMMENSION, SO GRID!
-			if(new_kern_dist_sq <= kernel_halfwidth_sqr){
+			// Write distance in this dimmensions
+			sparse_distances[*n_nonsparse_entries*ndims + cur_dim] = new_kern_dist;
+// 			printf("dist[%u,%u]=%f\n",*n_nonsparse_entries,cur_dim, new_kern_dist);
+			
+			if(cur_dim > 0){
 #ifdef DEBUG
-				printf("\tVoxel [%u, %u, %u] (index %u) is within support region (%f<=%f) of sample point [%u, %u, %u] (index %u), adding it to nonsparse entries!\n",
-						seed_pt[0],seed_pt[1],seed_pt[2], idx_, new_kern_dist_sq,kernel_halfwidth_sqr,sample_loc[0],sample_loc[1],sample_loc[2], sample_index);
+				printf("\tRecursing dim %u - gridding [",cur_dim+1, seed_pt[0],seed_pt[1],seed_pt[2]);
+				for(j=0; j<ndims; j++){
+					if(j < cur_dim){
+						printf("%u:%u",bounds[2*j],bounds[2*j+1]);
+					} else {
+						printf("%u",seed_pt[j]);
+					}
+					if(j < (ndims-1)){
+						printf(",");
+					}
+				}
+				printf("]\n");
 #endif
 				
+				// RECURSE THROUGH OTHER DIMMENSIONS
+				grid_point(sample_loc, idx_convert, ndims, cur_dim-1,
+						bounds, seed_pt, new_kern_dist, output_dims, sample_index,
+						n_nonsparse_entries,sparse_sample_indices,
+						sparse_voxel_indices, sparse_distances);
+			} else {
 				// CALCULATE INDEX FROM X,Y,Z COORDINATES
 				idx_ = 0;//seed_pt[0];
 				for(j=0; j<ndims; j++){
 					idx_ = idx_ + (seed_pt[j])*idx_convert[j];
 				}
-						
-				// Before increment because of zero indexing
+				
+				// Only write indices once per sample location
 				sparse_sample_indices[*n_nonsparse_entries] = sample_index+1;
 				sparse_voxel_indices[*n_nonsparse_entries] = (double)idx_+1;
-				sparse_distances[*n_nonsparse_entries] = new_kern_dist_sq;
-				
-#ifdef DEBUG
-				printf("\t\tAdding nonsparse entry %u - distance=%f for voxel index=%u and sample point=%u\n",
-						*n_nonsparse_entries, new_kern_dist_sq, idx_, sample_index);
-#endif
 				
 				// Increment number of non spares entries
 				(*n_nonsparse_entries)++;
-				
-			} 
-#ifdef DEBUG
-			else{
-				printf("\tVoxel [%u, %u, %u] is too far (%f > %f) from sample point [%u, %u, %u] (index %u)!\n",
-						seed_pt[0],seed_pt[1],seed_pt[2],new_kern_dist_sq,kernel_halfwidth_sqr,sample_loc[0],sample_loc[1],sample_loc[2], sample_index);
 			}
-#endif
-
-		}
+// 		}
+// #ifdef DEBUG
+// 		else{
+// 			printf("\tVoxel [%u, %u, %u] is too far (%f > %f) from sample point [%u, %u, %u] (index %u)!\n",
+// 					seed_pt[0],seed_pt[1],seed_pt[2],new_kern_dist,kernel_halfwidth,sample_loc[0],sample_loc[1],sample_loc[2], sample_index);
+// 		}
+// #endif
 		
 		/* RESET THIS DIMENSION */
 		seed_pt[cur_dim]=lower;
@@ -163,7 +156,7 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
  * n-dimensionalsample points and convolves them onto a grid. */
 void sparse_gridding_distance(double *coords, double kernel_width,
 		mwSize npts, unsigned int ndims, unsigned int max_n_neighbors,
-		unsigned int *output_dims, 
+		unsigned int *output_dims,
 		double *sparse_sample_indices,
 		double  *sparse_first_nonzero_voxel,
 		double *sparse_distances){
@@ -179,12 +172,10 @@ void sparse_gridding_distance(double *coords, double kernel_width,
 	double index_multiplier;
 	unsigned int *idx_convert;
 	double kernel_halfwidth;
-	double kernel_halfwidth_sqr;
 	unsigned int n_nonsparse_entries = 0;
-		
+	
 	/* CALCULATE KERNEL HALFWIDTH AND OUTPUT_HALFWIDTH */
 	kernel_halfwidth = kernel_width*0.5;
-	kernel_halfwidth_sqr = kernel_halfwidth * kernel_halfwidth;
 	output_halfwidth = calloc(ndims, sizeof(unsigned int));
 	if(output_halfwidth == NULL){printf("Error allocating memory for output_halfwidth. Crashing... :)\n");}
 	for(dim=0; dim<ndims; dim++){
@@ -227,27 +218,27 @@ void sparse_gridding_distance(double *coords, double kernel_width,
 			seed_pt[dim] = bounds[2*dim];
 		}
 		
-#ifdef DEBUG
+// #ifdef DEBUG
 		printf("GRIDDING ");
 		printf("Sample loc = [%f,%f,%f], ",sample_loc[0],sample_loc[1],sample_loc[2]);
 		printf("Bounds     = [%u:%u,%u:%u,%u:%u]\n",bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
-#endif
+// #endif
 		
-		grid_point(sample_loc, idx_convert, kernel_halfwidth_sqr, ndims, ndims-1, bounds,
+		grid_point(sample_loc, idx_convert, ndims, ndims-1, bounds,
 				seed_pt, 0, output_dims, p, &n_nonsparse_entries,
 				sparse_sample_indices, sparse_first_nonzero_voxel, sparse_distances);
 	}
 	
 	/* */
 #ifdef DEBUG
- 	for (p=0; p<n_nonsparse_entries; p++){
-		printf("nsp=%u  vox=%f, sample %f, distance=%f\n",p,sparse_first_nonzero_voxel[p],
-				sparse_sample_indices[p], sparse_distances[p]);
+	for (p=0; p<n_nonsparse_entries; p++){
+		printf("nsp=%u  vox=%f, sample %f, distances=[%f,%f,%f]\n",p,sparse_first_nonzero_voxel[p],
+				sparse_sample_indices[p], sparse_distances[p*ndims],sparse_distances[p*ndims+1],sparse_distances[p*ndims+2]);
 		
 		//Need to sort by Vox Idx, then (sub sort) by Sample idx
 		//ir = sample_idx - 1;
 		//jc = first nonzero sample index(row) in vodel index (col)
- 	}
+	}
 #endif
 	
 	/* Free up some memory */

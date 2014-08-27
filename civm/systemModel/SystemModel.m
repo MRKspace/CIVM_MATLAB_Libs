@@ -5,7 +5,7 @@ classdef SystemModel
 	end
 	methods
 		function reconVol = imageSpace(obj, reconVol)
-			reconVol = fftn(reconVol);
+			reconVol = ifftn(reconVol);
 		end
 	end
 	methods (Abstract)

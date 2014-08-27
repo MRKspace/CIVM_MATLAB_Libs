@@ -12,13 +12,13 @@ nNeighbors = 3;
 nIter = 25; % 25 is overkill, but the recommended default
 
 % % Rohan parameters :)
-% % For Dissolved:
-% ascending_ramp_time_override  = 0.252; % pw_gxwa
-% descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-% plateau_time_override         = 0.764; % pw_gxw/1000
-% matrixSize_override = [128 128 128];
-% toff_override = 0.006;
-% primeplus_override = 137.508;
+% For Dissolved:
+ascending_ramp_time_override  = 0.252; % pw_gxwa
+descending_ramp_time_override = 0.2;  % pw_gxwd/1000
+plateau_time_override         = 0.764; % pw_gxw/1000
+matrixSize_override = [128 128 128];
+toff_override = 0.006;
+primeplus_override = 137.508;
 
 % % For Ventilation:
 % ascending_ramp_time_override  = 0.992; % pw_gxwa
@@ -28,13 +28,13 @@ nIter = 25; % 25 is overkill, but the recommended default
 % toff_override = 0.006;
 % primeplus_override = 137.508;
 
-% For Proton:
-ascending_ramp_time_override  = 0.512; % pw_gxwa
-descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-plateau_time_override         = 1.536; % pw_gxw/1000
-matrixSize_override = [256 256 256];
-toff_override = 0.0402;
-primeplus_override = 137.508;
+% % For Proton:
+% ascending_ramp_time_override  = 0.512; % pw_gxwa
+% descending_ramp_time_override = 0.2;  % pw_gxwd/1000
+% plateau_time_override         = 1.536; % pw_gxw/1000
+% matrixSize_override = [256 256 256];
+% toff_override = 0.0402;
+% primeplus_override = 137.508;
 
 
 %Optional parameters

@@ -44,10 +44,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	double kernel_width;                // Convolution kernel width
 	unsigned int *output_dims;    // Size of output dimensions
 	const mwSize *dims;           // Dimension vector [#pts, #dimmensions]
-	unsigned int ndims;                 // Number of dimensions sampled
-	mwSize npts;                  // Total number of points sampled
-	mwSize nvoxels = 1;
-	mwSize max_n_neighbors = 1; // Total number of nonzero entries
+	unsigned int nDims;                 // Number of dimensions sampled
+	mwSize nPts;                  // Total number of points sampled
+	mwSize nVoxels = 1;
+	mwSize max_nNeighbors = 1; // Total number of nonzero entries
 	unsigned int dim;
 	double *sparse_distances;
     double *sparse_sample_indices;
@@ -77,10 +77,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	mxAssert(mxIsDouble(prhs[0]), "coords must be of type double");
 	mxAssert(mxGetNumberOfDimensions(prhs[0]) == 2, "coords must be a 2D array (each dimmension is a column)");
 	dims =  mxGetDimensions(prhs[0]);           // get dimension vector
-	ndims = (unsigned int) dims[0];                             // number of dimensions
-	npts  = (unsigned int) dims[1];                             // number of points
+	nDims = (unsigned int) dims[0];                             // number of dimensions
+	nPts  = (unsigned int) dims[1];                             // number of points
 	coords = mxGetPr(prhs[0]);                                  // coordinates
-	printf("Ndims=%u, npts=%u\n",ndims,npts);
+	printf("Ndims=%u, nPts=%u\n",nDims,nPts);
 	
 	/* INPUT 1 - KERNEL WIDTH */
 	mxAssert(!mxIsEmpty(prhs[1]),"kernel_width cannot be null.");
@@ -93,23 +93,23 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	/* INPUT 2 - OUTPUT VOLUME DIMS - Used to create output volume */
 	mxAssert(!mxIsEmpty(prhs[2]),"vol_dims cannot be null.");
 	mxAssert(mxGetNumberOfDimensions(prhs[2]) == 2, "vol_dims has the wrong number of dimmensions (should be a row vector).");
-	mxAssert(mxGetDimensions(prhs[2])[0] == ndims, "there must be the same number of vol_dims as dimmensions.");
+	mxAssert(mxGetDimensions(prhs[2])[0] == nDims, "there must be the same number of vol_dims as dimmensions.");
 	mxAssert(mxGetDimensions(prhs[2])[1] == 1, "vol_dims must be a column vector.");
 	output_dims = (unsigned int *) mxGetPr(prhs[2]);            // output dimensions
 	
 	// CALCULATE TOTAL NUMBER OF VOXELS AND NEIGHBORS
-	for(dim=0; dim<ndims; dim++){
-		nvoxels = nvoxels*output_dims[dim];
-		max_n_neighbors = max_n_neighbors*kernel_width;
+	for(dim=0; dim<nDims; dim++){
+		nVoxels = nVoxels*output_dims[dim];
+		max_nNeighbors = max_nNeighbors*kernel_width;
 	}
 	
 		/* DEBUG PRINTING */
 #ifdef DEBUG
-	mexPrintf("ndims=%i\n",ndims);
-	mexPrintf("npts=%i\n\n",npts);
+	mexPrintf("nDims=%i\n",nDims);
+	mexPrintf("nPts=%i\n\n",nPts);
 	
 	mexPrintf("Input coords:\n");
-	for(i=0; i<npts; i++){
+	for(i=0; i<nPts; i++){
 		mexPrintf("\tCoords[%u]=(%f,%f,%f)\n",i,coords[3*i],coords[3*i+1],coords[3*i+2]);
 	}
 	mexPrintf("End of input coords.\n\n");
@@ -117,22 +117,22 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	mexPrintf("Kernel width=:%f\n\n",kernel_width);
 	
 	mexPrintf("Input output_dims:\n");
-	for(i=0; i<ndims; i++){
+	for(i=0; i<nDims; i++){
 		mexPrintf("\toutput_dims[%u]=%u\n",i,output_dims[i]);
 	}
 	mexPrintf("End of ouput_dims.\n\n");
 
-	printf("max nonzero=%u\n",npts*max_n_neighbors);
+	printf("max nonzero=%u\n",nPts*max_nNeighbors);
 #endif
 	
 // 	/* OUTPUT 0 - GRIDDED KSPACE - Created with dimensions of output_dims */
-//  	plhs[0] = mxCreateSparse(npts,nvoxels,npts*max_n_neighbors,mxREAL);
+//  	plhs[0] = mxCreateSparse(nPts,nVoxels,nPts*max_nNeighbors,mxREAL);
 //     sparse_distances  = mxGetPr(plhs[0]);v
 //     sparse_sample_indices = mxGetIr(plhs[0]);
 //     sparse_first_nonzero_voxel = mxGetJc(plhs[0]);
 	
-	tempSize[0] = round(npts*max_n_neighbors);
-	tempSize[1] = 1;
+	tempSize[0] = 1;
+	tempSize[1] = round(nPts*max_nNeighbors);
 	plhs[0] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
     mxAssert(!mxIsEmpty(plhs[0]),"Sample index matrix was not allocated correctly. Possibly out of memory.");
     sparse_sample_indices = mxGetPr(plhs[0]);
@@ -141,13 +141,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
     mxAssert(!mxIsEmpty(plhs[1]),"Voxel index matrix was not allocated correctly. Possibly out of memory.");
     sparse_first_nonzero_voxel = mxGetPr(plhs[1]);
 
+	tempSize[0] = nDims;
+	tempSize[1] = round(nPts*max_nNeighbors);
 	plhs[2] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
     mxAssert(!mxIsEmpty(plhs[2]),"Distance matrix was not allocated correctly. Possibly out of memory.");
     sparse_distances = mxGetPr(plhs[2]);
 
 	
 	/* Perform the convolution based gridding */
-	sparse_gridding_distance(coords, kernel_width, npts, ndims, max_n_neighbors, output_dims,
+	sparse_gridding_distance(coords, kernel_width, nPts, nDims, max_nNeighbors, output_dims,
 			sparse_sample_indices, sparse_first_nonzero_voxel, sparse_distances);
 }
 
