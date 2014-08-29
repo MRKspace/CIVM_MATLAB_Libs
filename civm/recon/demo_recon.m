@@ -1,33 +1,50 @@
 % This demo shows how to batch reconstruct a GE Pfile using Fessler's NUFFT
 % algorithm.
 
-% % Start with a clean slate
+% % % Start with a clean slate
 clc; clear all; close all; fclose all;
 
 % Required parameters
 model_type = 'grid'; % nufft or grid
 recon_type = 'lsq';   % lsq (Least Squares) or cg (Conjugate Gradient)
-overgridfactor = 6;
-nNeighbors = 6;
+dcf_type = 'hitplane'; % iter (Pipe itterative), voronoi (Voronoi), hitplane (hitplant), analytical (analytical)
+proximity_metric = 'L2'; % L2 (L2-norm) or L1 (L1-norm)
+kernel_type = 'kaiser-bessel'; % kaiser-bessel
+overgridfactor = 2;
+nNeighbors = 3;
+kaiser_b_override = 100;
+sigma = 0.506;
 nIter = 25; % 25 is overkill, but the recommended default
+saveIter = 1:nIter; % only for CG recon
 
-% Optional Parameters
-ascending_ramp_time_override  = 0.508; % pw_gxwa
-descending_ramp_time_override = 20000;  % pw_gxwd/1000
-plateau_time_override         = 10000; % pw_gxw/1000
-matrixSize_override = 128*[1 1 1 ];
-toff_override = 0.132;
-primeplus_override = 101;
+% % Optional Parameters
+% ascending_ramp_time_override  = 0.260; % pw_gxwa
+% descending_ramp_time_override = 0.200;  % pw_gxwd/1000
+% plateau_time_override         = 10000; % pw_gxw/1000
+% matrixSize_override = 128*[1 1 1 ];
+% toff_override = 0.068;
+% primeplus_override = 101;
+
+% For Ventilation:
+ascending_ramp_time_override  = 0.992; % pw_gxwa
+descending_ramp_time_override = 0.2;  % pw_gxwd/1000
+plateau_time_override         = 2.976; % pw_gxw/1000
+matrixSize_override = 150*[1 1 1];
+toff_override = 0.006;
+primeplus_override = 137.508;
+
+fft_size = 4*matrixSize_override;
 
 %Optional parameters
 revision_override = [];  %Optional override if it can't be automatically read from the pfile
 nyquistScaling = 1*[1 1 1];
 verbose = 1;
 
-pfile_name = filepath('/home/scott/Public/pfiles/demo/P16384.7_lung')
+pfile_name = filepath('/home/scott/Public/data/20140827/CANCER_BEM_082714/129Xe_vent/P43008.7')
+% pfile_name = filepath('/home/scott/Public/data/20140725/jerry/P03584.7')
 
 %% Read and Process Pfile
-if(isempty(revision_override))
+if(isempty(revision_override))8
 	[header, data] = readPfile(pfile_name);
 else
 	[header, data] = readPfile(pfile_name, revision_override);
@@ -38,7 +55,7 @@ header.rdb.rdb_hdr_user22 = toff_override;
 header.rdb.rdb_hdr_user1 = ascending_ramp_time_override; % ascending gradient ramp time
 header.rdb.rdb_hdr_user38 = descending_ramp_time_override;  % descending gradient ramp time
 header.rdb.rdb_hdr_user44 = plateau_time_override;% gradient plateau time
-% header.rdb.rdb_hdr_user23 = primeplus_override;
+header.rdb.rdb_hdr_user23 = primeplus_override;
 if(verbose)
 	% Display key header info
 	dispPfileHeaderInfo(header);
@@ -64,7 +81,7 @@ header.MatrixSize = matrixSize_override;
 [header, traj] = calculateNyquistMatrixSize(radialDistance, traj, ...
 	header, nyquistScaling);
 
-% Vectorize data and traj for recon
+% Vectorize data and traj for reconvoronoi
 [data, traj] = vectorizeDataAndTraj(data, traj, header);
 
 % Enforce Nyquist limits
@@ -72,47 +89,94 @@ header.MatrixSize = matrixSize_override;
 
 %% Reconstruction
 % Create System Model - only recalculate the model if necessary
-% if(~exist('model','var'))
+if(~exist('model','var'))
 	% Note, creating this object can be computationally intensive
 	switch(lower(model_type))
 		case 'nufft'
 			model = NufftSystemModel(traj, header.MatrixSize, ...
 				overgridfactor, [nNeighbors nNeighbors nNeighbors]);
 		case 'grid'
-% 			traj = traj(1:300,:);
+			% Create kernel object
+			switch(kernel_type)
+				case 'kaiser-bessel'
+					kernelObj = KaiserBesselGriddingKernel(nNeighbors, ...
+						overgridfactor, kaiser_b_override, verbose);
+				case 'gaussian'
+					case 'kaiser-bessel'
+					kernelObj = GaussianGriddingKernel(nNeighbors, ...
+						overgridfactor, sigma, verbose);
+				otherwise
+					error('Kernel not supported.');
+			end
+			
+			% Create Proximity metric
+			switch(proximity_metric)
+				case 'L2'
+					proxObj = L2GriddingProximity(kernelObj, verbose);
+				case 'L1'
+					proxObj = L1GriddingProximity(kernelObj, verbose);
+				otherwise
+					error('Proximity metric not supported.');
+			end
+			clear kernelObj;
 			
 			model = GriddingSystemModel(traj, header.MatrixSize, ...
-				overgridfactor, nNeighbors);
+				overgridfactor, nNeighbors, proxObj);
 		otherwise
 			error('System model not supported.');
 	end
-% end
+end
 
 % Create Reconstruction Object - only recalculate the model if necessary
 if(~exist('reconObj','var'))
-	% Note, creating this object can be computationally intensive
+	% Note, creating this object can be computationally intensives
 	switch(lower(recon_type))
 		case 'lsq'
-			reconObj = LsqRecon(model, nIter, verbose);
+			reconObj = LsqRecon(model, verbose);
+			
+			% Create Density compensation object
+			switch(dcf_type)
+				case 'iter'
+					dcfObj = IterativeDcf(model, nIter, verbose);
+				case 'voronoi'
+					dcfObj = VoronoiDcf(traj, verbose);
+				case 'hitplane'
+					dcfObj = HitplaneDcf(model, verbose);
+				case 'analytical'
+					dcfObj = AnalyticalDcf(traj, verbose);
+				otherwise
+					error('dcf_type not implemented');
+			end
 		case 'cg'
-			saveIter = 1:nIter;
+			if(~isempty(dcf_type))
+				warning('DCF is not necessary for CG method');
+			end
 			reconObj = ConjGradRecon(model, nIter, saveIter, verbose);
 		otherwise
 			error('Reconstruction type not supported.');
 	end
 end
+clear traj;
+
+details = [proxObj.kernelObj.unique_string '_prox' proxObj.unique_string ]
 
 % Reconstruct kspace data - Note output is kspace domain
-reconVol = reconObj.reconstruct(data);
+reconVol = reconObj.reconstruct(data, dcfObj);
+clear data;
+
+% % % Save some stuff
+% % zeroPadFFT = ifftshift(padarray(fftshift(reconVol),0.5*(fft_size-size(reconVol))));
+% % nii = make_nii(log(abs(fftshift(zeroPadFFT))));
+% % save_nii(nii,['fft_' details '.nii'],16);
+% overgridIm = fftshift(ifftn(reconVol));
+% nii = make_nii(abs(overgridIm));
+% save_nii(nii,['overgridIm_' details '.nii'],16);
+% clear overgridIm;
 
 % Put data back into image space (undoes overgridding, shifts, etc)
 reconVol = model.imageSpace(reconVol);
-
-% % Save data
-% recon_filename = [starting_dir filesep() 'recon_' pfile_name '.nii'];
-recon_filename = ['recon_overgrid' num2str(overgridfactor) '_nNeigh' num2str(nNeighbors)  '.nii'];
-nii = make_nii(abs(reconVol));
-save_nii(nii,recon_filename,16);
+nii = make_nii(abs(reconVol),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
+save_nii(nii,['nufft_' details '.nii'],16);
 
 % Show image
 imslice(abs(reconVol));
