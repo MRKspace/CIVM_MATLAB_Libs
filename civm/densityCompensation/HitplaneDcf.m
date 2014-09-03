@@ -16,6 +16,9 @@ classdef HitplaneDcf < DCF
 			else
 				obj.dcf = sum(model.A~=0,1)';
 			end
+			obj.dcf = full(obj.dcf); 
+			nonzero_vals = (obj.dcf~=0);
+			obj.dcf(nonzero_vals) = 1./(model.neighborhoodSize*obj.dcf(nonzero_vals));
 		end
 	end
 end

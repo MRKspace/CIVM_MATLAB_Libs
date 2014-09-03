@@ -7,12 +7,12 @@ clc; clear all; close all; fclose all;
 % Required parameters
 model_type = 'grid'; % nufft or grid
 recon_type = 'lsq';   % lsq (Least Squares) or cg (Conjugate Gradient)
-dcf_type = 'hitplane'; % iter (Pipe itterative), voronoi (Voronoi), hitplane (hitplant), analytical (analytical)
+dcf_type = 'pipe'; % iter (Pipe itterative), voronoi (Voronoi), hitplane (hitplant), analytical (analytical)
 proximity_metric = 'L2'; % L2 (L2-norm) or L1 (L1-norm)
 kernel_type = 'kaiser-bessel'; % kaiser-bessel
 overgridfactor = 2;
 nNeighbors = 3;
-kaiser_b_override = 100;
+kaiser_b_override = [];
 sigma = 0.506;
 nIter = 25; % 25 is overkill, but the recommended default
 saveIter = 1:nIter; % only for CG recon
@@ -44,7 +44,7 @@ pfile_name = filepath('/home/scott/Public/data/20140827/CANCER_BEM_082714/129Xe_
 % pfile_name = filepath('/home/scott/Public/data/20140725/jerry/P03584.7')
 
 %% Read and Process Pfile
-if(isempty(revision_override))8
+if(isempty(revision_override))
 	[header, data] = readPfile(pfile_name);
 else
 	[header, data] = readPfile(pfile_name, revision_override);
@@ -102,7 +102,7 @@ if(~exist('model','var'))
 					kernelObj = KaiserBesselGriddingKernel(nNeighbors, ...
 						overgridfactor, kaiser_b_override, verbose);
 				case 'gaussian'
-					case 'kaiser-bessel'
+				case 'kaiser-bessel'
 					kernelObj = GaussianGriddingKernel(nNeighbors, ...
 						overgridfactor, sigma, verbose);
 				otherwise
@@ -147,6 +147,21 @@ if(~exist('reconObj','var'))
 				otherwise
 					error('dcf_type not implemented');
 			end
+			
+			switch(dcfObj.dcf_style)
+				case 'gridspace'
+					radial_dcf = (model.A*dcfObj.dcf);
+				case 'dataspace'
+					radial_dcf = dcfObj.dcf;
+				otherwise
+					error('DCF style not recognized');
+			end
+			
+			nPts = header.rdb.rdb_hdr_frame_size;
+			nFrames = header.rdb.rdb_hdr_user20;
+			radial_dcf = reshape(radial_dcf,[nPts nFrames]);
+			radial_dcf = mean(radial_dcf,2);
+			
 		case 'cg'
 			if(~isempty(dcf_type))
 				warning('DCF is not necessary for CG method');
@@ -156,27 +171,18 @@ if(~exist('reconObj','var'))
 			error('Reconstruction type not supported.');
 	end
 end
-clear traj;
 
-details = [proxObj.kernelObj.unique_string '_prox' proxObj.unique_string ]
+details = [model_type '_dcf' dcfObj.dcf_unique_name '-' proxObj.kernelObj.unique_string '_prox' proxObj.unique_string ]
+
+save(['radialDCF_' details '.mat'],'radial_dcf');
 
 % Reconstruct kspace data - Note output is kspace domain
 reconVol = reconObj.reconstruct(data, dcfObj);
-clear data;
-
-% % % Save some stuff
-% % zeroPadFFT = ifftshift(padarray(fftshift(reconVol),0.5*(fft_size-size(reconVol))));
-% % nii = make_nii(log(abs(fftshift(zeroPadFFT))));
-% % save_nii(nii,['fft_' details '.nii'],16);
-% overgridIm = fftshift(ifftn(reconVol));
-% nii = make_nii(abs(overgridIm));
-% save_nii(nii,['overgridIm_' details '.nii'],16);
-% clear overgridIm;
 
 % Put data back into image space (undoes overgridding, shifts, etc)
 reconVol = model.imageSpace(reconVol);
 nii = make_nii(abs(reconVol),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
-save_nii(nii,['nufft_' details '.nii'],16);
+save_nii(nii,['recon_' details '.nii'],16);
 
 % Show image
 imslice(abs(reconVol));

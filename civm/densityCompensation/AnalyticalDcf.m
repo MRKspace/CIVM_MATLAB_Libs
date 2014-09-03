@@ -9,6 +9,8 @@ classdef AnalyticalDcf < DCF
 			obj.dcf_style = 'dataspace';
 			
 			obj.dcf = sqrt(sum(traj.^2,2));
+% 			nonzero_vals = (obj.dcf ~= 0);
+% 			obj.dcf(nonzero_vals) = 1./obj.dcf(nonzero_vals);
 		end
 	end
 end

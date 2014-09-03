@@ -15,7 +15,7 @@ classdef LsqRecon < Recon
 				case 'gridspace'
 					nonzero_dcf = (dcf_obj.dcf~=0);
 					reconVol = (obj.model.A' * data);
-					reconVol(nonzero_dcf) = reconVol(nonzero_dcf) ./ dcf_obj.dcf(nonzero_dcf);
+					reconVol(nonzero_dcf) = reconVol(nonzero_dcf) .* dcf_obj.dcf(nonzero_dcf);
 				case 'dataspace'
 					reconVol = obj.model.A' * (dcf_obj.dcf .* data);
 				otherwise

@@ -47,11 +47,10 @@ classdef KaiserBesselGriddingKernel < GriddingKernel
 		function [kernel_vals] = kernelValues(obj, distances)
 			% Calculate Kaiser Bessel Function
 			kernel_vals = besseli(0,obj.beta*...
-				sqrt(1 - (2*distances/obj.kernel_width).^2));
+				sqrt(1 - (2*distances/obj.kernel_width).^2))./obj.kernel_width;
 			
-			%Normalize
+			%Normalize - NOTE I SHOULD BE NORMALIZING AREA
 			kernel_vals = kernel_vals/max(kernel_vals(:));
-% 			kernel_vals = kernel_vals/sum(kernel_vals(:)); % seems better than max...  
 		end
 	end
 end
