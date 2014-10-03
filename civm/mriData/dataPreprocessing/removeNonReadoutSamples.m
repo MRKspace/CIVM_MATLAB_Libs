@@ -7,7 +7,8 @@
 % Author: Scott Haile Robertson
 % Date: 8/10/2014
 %
-function [correctedRadialTraj, correctedData, header] = removeNonReadoutSamples(radialTraj, data, header)
+function [radialDist, data, weights header] = ...
+	removeNonReadoutSamples(radialDist, data, weights, header)
 % Pull relavent info out of header
 bw = header.rdb.rdb_hdr_user12;                 % Receiver bandwidth (kHz)
 dwell_time = 1/(2*bw);                                             % Time between each sample
@@ -35,18 +36,16 @@ decay_end_pt = decay_start_pt + decay_npts;
 
 % Check if there are sample points after the decay ramp
 start_nonreadout_pts = ceil(decay_end_pt);
-correctedRadialTraj = radialTraj;
-correctedData = data;
 if(start_nonreadout_pts < npts)
 	% Warn user that we sampled post decay ramp
-	h = warndlg(['Data was sampled beyone the readout trapezoid... ' ...
+	warning(['Data was sampled beyone the readout trapezoid... ' ...
 		'throwing away ' num2str(npts - start_nonreadout_pts) ' samples. '...
-		'Please decrease the number of points to avoid this.'],'!! Warning !!');
-	uiwait(h);
+		'Please decrease the number of points to avoid this.']);
 	
 	% Remove data and radial traj that occur after decay ramp
-	correctedRadialTraj(start_nonreadout_pts:end) = [];
-	correctedData(start_nonreadout_pts:end,:)=[];
+	radialDist(start_nonreadout_pts:end) = [];
+	data(start_nonreadout_pts:end,:)=[];
+	weights(start_nonreadout_pts:end,:)=[];
 	
 	% Update header to keep it in sync with data
 	header.rdb.rdb_hdr_frame_size = start_nonreadout_pts-1;

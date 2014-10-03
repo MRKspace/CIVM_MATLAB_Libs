@@ -2,7 +2,7 @@ classdef DCF
 	properties
 		dcf_type;
 		dcf;
-		dcf_unique_name;
+		unique_string;
 		dcf_style;
 		verbose;
 	end

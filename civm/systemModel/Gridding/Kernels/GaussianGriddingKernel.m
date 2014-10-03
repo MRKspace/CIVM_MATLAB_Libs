@@ -3,7 +3,7 @@ classdef GaussianGriddingKernel < GriddingKernel
 		kernel_width;
 		overgrid_factor;
 		sigma;
-		unique_string;
+		norm_val;
 	end
 	
 	methods
@@ -17,19 +17,19 @@ classdef GaussianGriddingKernel < GriddingKernel
 			obj.overgrid_factor = overgridFactor;
 			
 			obj.sigma = sigma;
+			
+			% Calculate normalization value
+			p = normcdf(-0.5*obj.kernel_width,0,obj.sigma);
+			obj.norm_val = 1/(1-2*p); % needs to consider overgridding too...
 						
 			% Fill in unique string
-			obj.unique_string = ['gaussian_idth' num2str(obj.kernel_width) ...
+			obj.unique_string = ['gaussian_width' num2str(obj.kernel_width) ...
 				'_overgrid' num2str(obj.overgrid_factor) '_sigma' num2str(obj.sigma)];
 		end
 		
 		function [kernel_vals] = kernelValues(obj, distances)
-			% Calculate Gaussian Function
-			kernel_vals = exp(-0.5*(distances/sigma).^2)
-			
-			%Normalize
-			kernel_vals = kernel_vals/max(kernel_vals(:));
-% 			kernel_vals = kernel_vals/sum(kernel_vals(:)); % seems better than max...  
+			% Calculate Normalized Gaussian Function
+			kernel_vals = obj.norm_val*normpdf(distances,0,obj.sigma);
 		end
 	end
 end

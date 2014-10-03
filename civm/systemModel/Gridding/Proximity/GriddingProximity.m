@@ -12,6 +12,7 @@ classdef GriddingProximity
 	end
 	
 	methods (Abstract)
-		[kernel_vals idxOutOfBounds] = kernelValues(obj, distances, neighborhoodSize);
+		[kernel_vals idxOutOfBounds] = kernelValues(obj, distances);
+		[reconVol] = deapodize(obj, reconVol, outputSize);
 	end
 end

@@ -10,7 +10,7 @@
 % Author: Scott Haile Robertson
 % Date: 8/10/2014
 %
-function [correctedData, correctedTraj, header] = enforceNyquistBounds(data, traj, header)
+function [data, traj, weights, header] = enforceNyquistBounds(data, traj, weights, header)
 % Calculate radial distance
 radial_distance = sqrt(sum(traj.^2,2));
 
@@ -22,14 +22,15 @@ correctedData = data;
 correctedTraj = traj;
 if(nExceedingNyquist > 0)
 	% Warn user that we sampled post decay ramp
-	h = warndlg(['Trajectory points exceed nyquist limit... ' ...
+	warning(['Trajectory points exceed nyquist limit... ' ...
 		'throwing away ' num2str(nExceedingNyquist) ...
 		' samples to avoid aliasing. '...
 		'Increase the matrix size to throw away less data.'],'!! Warning !!');
-	uiwait(h);
+% 	uiwait(h);
 	
 	% Remove data and trajectory points that exceed Nyquist
-	correctedData(exceeds_nyquist) = [];
-	correctedTraj(exceeds_nyquist,:) = [];
+	data(exceeds_nyquist) = [];
+	weights(exceeds_nyquist) = [];
+	traj(exceeds_nyquist,:) = [];
 end
 end

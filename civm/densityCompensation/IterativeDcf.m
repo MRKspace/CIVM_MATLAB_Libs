@@ -14,7 +14,7 @@ classdef IterativeDcf < DCF
 			obj.verbose = verbosity;
 			obj.dcf_iterations = iterations;
 			obj.dcf_type = 'iterative';
-			obj.dcf_unique_name = ['iterativeDcf' num2str(obj.dcf_iterations) 'iter'];
+			obj.unique_string = ['iterativeDcf' num2str(obj.dcf_iterations) 'iter'];
 			obj.dcf_style = 'dataspace';
 						
 			obj.dcf = 1./abs(model.A * ones(prod(model.reconMatrixSize),1)); % Reasonable first guess

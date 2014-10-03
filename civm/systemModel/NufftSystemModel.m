@@ -13,6 +13,9 @@ classdef NufftSystemModel < SystemModel
 			obj.overgridFactor = overgrid_factor;
 			obj.neighborhoodSize = neighborhood_size;
 			obj.reconMatrixSize = output_image_size * overgrid_factor;
+			obj.unique_string = ['nufftModel_outputSize' num2str(obj.outputImageSize(1))...
+				'_overgrid' num2str(obj.overgridFactor) ...
+				'_neighbors' num2str(obj.neighborhoodSize(1))];
 			
 			% Initialize NUFFT Model
 			nufft = Gmri(traj, ...

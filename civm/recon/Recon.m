@@ -2,6 +2,7 @@ classdef Recon
 	properties
 		model;			% System Matrix
 		verbose;
+		unique_string;
 	end
 	
 	methods

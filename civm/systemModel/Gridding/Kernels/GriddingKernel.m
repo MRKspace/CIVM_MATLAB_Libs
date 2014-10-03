@@ -12,6 +12,6 @@ classdef GriddingKernel
 	end
 	
 	methods (Abstract)
-		 kernel_vals = kernelValues(obj, distances);			
+		 kernel_vals = kernelValues(obj, distances);	
 	end
 end

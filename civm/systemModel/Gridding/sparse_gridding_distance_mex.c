@@ -21,7 +21,7 @@
  *  NOTE #1: You must compile with the -largeArrayDims option to enable
  *           the creation of sparse matrices
  *
- *  NOTE #2: compiling in debug mode (mex -g grid_conv_mex.c) turns on error
+ *  NOTE #2: compiling in debug mode (mex -largeArrayDims -g sparse_gridding_distance_mex.c) turns on error
  *           checking of inputs. I recommend that you compile in debug mode
  *           to ensure that you are passing input arguments correctly, then
  *           recompile without debug mode once you have it wired correctly and
@@ -48,10 +48,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	mwSize nPts;                  // Total number of points sampled
 	mwSize nVoxels = 1;
 	mwSize max_nNeighbors = 1; // Total number of nonzero entries
+	unsigned int max_size;
 	unsigned int dim;
 	double *sparse_distances;
     double *sparse_sample_indices;
-    double *sparse_first_nonzero_voxel;
+    double *sparse_voxel_idx;
 	mwSignedIndex tempSize[2];
 	
 	/* FOR DEBUG ONLY */
@@ -80,8 +81,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	nDims = (unsigned int) dims[0];                             // number of dimensions
 	nPts  = (unsigned int) dims[1];                             // number of points
 	coords = mxGetPr(prhs[0]);                                  // coordinates
+// #ifdef DEBUG
 	printf("Ndims=%u, nPts=%u\n",nDims,nPts);
-	
+// #endif
 	/* INPUT 1 - KERNEL WIDTH */
 	mxAssert(!mxIsEmpty(prhs[1]),"kernel_width cannot be null.");
 	mxAssert(mxIsDouble(prhs[1]), "kernel_width must be of type double.");
@@ -100,7 +102,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	// CALCULATE TOTAL NUMBER OF VOXELS AND NEIGHBORS
 	for(dim=0; dim<nDims; dim++){
 		nVoxels = nVoxels*output_dims[dim];
-		max_nNeighbors = max_nNeighbors*kernel_width;
+		max_nNeighbors = max_nNeighbors*(kernel_width+1);
+		printf("Max n Neighbors=%u\n",max_nNeighbors);
 	}
 	
 		/* DEBUG PRINTING */
@@ -131,26 +134,29 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 //     sparse_sample_indices = mxGetIr(plhs[0]);
 //     sparse_first_nonzero_voxel = mxGetJc(plhs[0]);
 	
-	tempSize[0] = 1;
-	tempSize[1] = round(nPts*max_nNeighbors);
+	max_size = ceil(nPts*max_nNeighbors);
+	tempSize[0] = 1; // Would be faster with dimensions switched, but this must
+	                 // be consistent with the distances matrix, which is a bigger
+	                 // bottleneck
+	tempSize[1] = max_size;
+	printf("max size=%u\n",max_size);
 	plhs[0] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
     mxAssert(!mxIsEmpty(plhs[0]),"Sample index matrix was not allocated correctly. Possibly out of memory.");
     sparse_sample_indices = mxGetPr(plhs[0]);
 
 	plhs[1] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
     mxAssert(!mxIsEmpty(plhs[1]),"Voxel index matrix was not allocated correctly. Possibly out of memory.");
-    sparse_first_nonzero_voxel = mxGetPr(plhs[1]);
+    sparse_voxel_idx = mxGetPr(plhs[1]);
 
 	tempSize[0] = nDims;
-	tempSize[1] = round(nPts*max_nNeighbors);
+	tempSize[1] = max_size;
 	plhs[2] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
     mxAssert(!mxIsEmpty(plhs[2]),"Distance matrix was not allocated correctly. Possibly out of memory.");
     sparse_distances = mxGetPr(plhs[2]);
 
-	
 	/* Perform the convolution based gridding */
-	sparse_gridding_distance(coords, kernel_width, nPts, nDims, max_nNeighbors, output_dims,
-			sparse_sample_indices, sparse_first_nonzero_voxel, sparse_distances);
+	sparse_gridding_distance(coords, kernel_width, nPts, nDims, ceil(nPts*max_nNeighbors), output_dims,
+			sparse_sample_indices, sparse_voxel_idx, sparse_distances);
 }
 
 

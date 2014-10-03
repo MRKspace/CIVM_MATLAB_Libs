@@ -5,7 +5,7 @@ classdef VoronoiDcf < DCF
 			% Store properties of DCF
 			obj.verbose = verbosity;
 			obj.dcf_type = 'voronoi';
-			obj.dcf_unique_name = 'voronoiDcf';
+			obj.unique_string = 'voronoiDcf';
 			obj.dcf_style = 'dataspace';
 
 			[unique_traj iTraj iUnique] = unique(traj,'rows');

@@ -16,6 +16,7 @@
 %   $Revision: 1.0 $  $Date: 2012/07/19 $
 classdef KaiserBesselGriddingKernel < GriddingKernel
 	properties
+		recon_size;
 		kernel_width;
 		overgrid_factor;
 		beta;
@@ -23,18 +24,18 @@ classdef KaiserBesselGriddingKernel < GriddingKernel
 	
 	methods
 		% Constructor
-		function obj = KaiserBesselGriddingKernel(kernWidth, overgridFactor, betaOverride, verbose)
+		function obj = KaiserBesselGriddingKernel(kernWidth, overgridFactor, reconSize, betaOverride, verbose)
 			% Call super constructor to build obj
 			obj = obj@GriddingKernel(verbose);
 			
 			% Store properties
 			obj.kernel_width = kernWidth;
 			obj.overgrid_factor = overgridFactor;
+			obj.recon_size = reconSize;
 			
 			%Calculate Beta value (Rapid Gridding Reconstruction With a Minimal Oversampling Ratio. Beatty et al. 2005.)
 			if(isempty(betaOverride))
-				obj.beta = pi*sqrt( ((obj.kernel_width/obj.overgrid_factor)*...
-					(obj.overgrid_factor-0.5))^2-0.8 );
+				obj.beta = pi*sqrt( (0.5*obj.kernel_width)^2-0.8 );
 			else
 				obj.beta = betaOverride;
 			end
@@ -44,12 +45,21 @@ classdef KaiserBesselGriddingKernel < GriddingKernel
 				'_overgrid' num2str(obj.overgrid_factor) '_beta' num2str(obj.beta)];
 		end
 		
-		function [kernel_vals] = kernelValues(obj, distances)
+		function [kernel_vals] = kernelValues(obj, distances)	
 			% Calculate Kaiser Bessel Function
 			kernel_vals = besseli(0,obj.beta*...
 				sqrt(1 - (2*distances/obj.kernel_width).^2))./obj.kernel_width;
 			
-			%Normalize - NOTE I SHOULD BE NORMALIZING AREA
+			% Its tempting to just use some fixed size (like the matrix
+			% size), however the kaiser bessel function is created to be
+			% zero at the kernel size, thus its best to just use the kernel
+			% size. This makes optimization a pain, but theres not much we
+			% can do...
+			kernel_vals = besseli(0,obj.beta*...
+				sqrt(1 - (2*distances/obj.recon_size(1)).^2))./obj.recon_size(1);
+
+			%Normalize - NOTE I SHOULD BE NORMALIZING AREA, but this is
+			%just a global scale, so who cares...
 			kernel_vals = kernel_vals/max(kernel_vals(:));
 		end
 	end

@@ -25,7 +25,7 @@
  *  NOTE #1: You must compile with the -largeArrayDims option to enable
  *           the creation of sparse matrices
  *
- *  NOTE #2: compiling in debug mode (mex -g sparse_gridding_distance.c) turns on error
+ *  NOTE #2: compiling in debug mode (mex -largeArrayDims -g sparse_gridding_distance.c) turns on error
  *           checking of inputs. I recommend that you compile in debug mode
  *           to ensure that you are passing input arguments correctly, then
  *           recompile without debug mode once you have it wired correctly and
@@ -73,7 +73,8 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 		unsigned int *n_nonsparse_entries,
 		double *sparse_sample_indices,
 		double *sparse_voxel_indices,
-		double *sparse_distances){
+		double *sparse_distances,
+		unsigned int max_size){
 	
 	/* DEFINITIONS */
 	unsigned int i;
@@ -100,6 +101,11 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 // #endif
 			
 			// Write distance in this dimmensions
+// 			if(*n_nonsparse_entries*ndims + cur_dim >= ndims*max_size){
+// 				for(j=0; j<1000; j++){
+// 					printf("BAD IDX\n...");
+// 				}
+// 			}
 			sparse_distances[*n_nonsparse_entries*ndims + cur_dim] = new_kern_dist;
 // 			printf("dist[%u,%u]=%f\n",*n_nonsparse_entries,cur_dim, new_kern_dist);
 			
@@ -123,8 +129,11 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 				grid_point(sample_loc, idx_convert, ndims, cur_dim-1,
 						bounds, seed_pt, new_kern_dist, output_dims, sample_index,
 						n_nonsparse_entries,sparse_sample_indices,
-						sparse_voxel_indices, sparse_distances);
+						sparse_voxel_indices, sparse_distances, max_size);
 			} else {
+				if(*n_nonsparse_entries > (max_size - 1000)){
+				printf("ADDED %u/%u nonsparse entries...\n",*n_nonsparse_entries,max_size);
+				}
 				// CALCULATE INDEX FROM X,Y,Z COORDINATES
 				idx_ = 0;//seed_pt[0];
 				for(j=0; j<ndims; j++){
@@ -132,6 +141,11 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 				}
 				
 				// Only write indices once per sample location
+// 				if(*n_nonsparse_entries >= max_size){
+// 					for(j=0; j<1000; j++){
+// 						printf("2BAD IDX\n...");
+// 					}
+// 				}
 				sparse_sample_indices[*n_nonsparse_entries] = sample_index+1;
 				sparse_voxel_indices[*n_nonsparse_entries] = (double)idx_+1;
 				
@@ -155,10 +169,10 @@ void grid_point(double *sample_loc, unsigned int *idx_convert,
 /* Performs convolution based gridding. Loops through a set of
  * n-dimensionalsample points and convolves them onto a grid. */
 void sparse_gridding_distance(double *coords, double kernel_width,
-		mwSize npts, unsigned int ndims, unsigned int max_n_neighbors,
+		mwSize npts, unsigned int ndims, unsigned int max_size,
 		unsigned int *output_dims,
 		double *sparse_sample_indices,
-		double  *sparse_first_nonzero_voxel,
+		double  *sparse_voxel_indices,
 		double *sparse_distances){
 	
 	/* DEFINITIONS */
@@ -198,7 +212,6 @@ void sparse_gridding_distance(double *coords, double kernel_width,
 	bounds = calloc(2 * ndims, sizeof(unsigned int));
 	seed_pt = calloc(ndims, sizeof(unsigned int));
 	sample_loc = calloc(ndims, sizeof(double));
-// 	sparse_voxel_indices = calloc(npts*max_n_neighbors, sizeof(unsigned int));
 	if(bounds                == NULL){printf("Error allocating memory for bounds. Crashing... :)\n");}
 	if(seed_pt               == NULL){printf("Error allocating memory for seed_pt. Crashing... :)\n");}
 	if(sample_loc            == NULL){printf("Error allocating memory for sample_loc. Crashing... :)\n");}
@@ -218,21 +231,21 @@ void sparse_gridding_distance(double *coords, double kernel_width,
 			seed_pt[dim] = bounds[2*dim];
 		}
 		
-// #ifdef DEBUG
+#ifdef DEBUG
 		printf("GRIDDING ");
 		printf("Sample loc = [%f,%f,%f], ",sample_loc[0],sample_loc[1],sample_loc[2]);
 		printf("Bounds     = [%u:%u,%u:%u,%u:%u]\n",bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
-// #endif
+#endif
 		
 		grid_point(sample_loc, idx_convert, ndims, ndims-1, bounds,
 				seed_pt, 0, output_dims, p, &n_nonsparse_entries,
-				sparse_sample_indices, sparse_first_nonzero_voxel, sparse_distances);
+				sparse_sample_indices, sparse_voxel_indices, sparse_distances,max_size);
 	}
 	
 	/* */
 #ifdef DEBUG
 	for (p=0; p<n_nonsparse_entries; p++){
-		printf("nsp=%u  vox=%f, sample %f, distances=[%f,%f,%f]\n",p,sparse_first_nonzero_voxel[p],
+		printf("nsp=%u  vox=%f, sample %f, distances=[%f,%f,%f]\n",p,sparse_voxel_indices[p],
 				sparse_sample_indices[p], sparse_distances[p*ndims],sparse_distances[p*ndims+1],sparse_distances[p*ndims+2]);
 		
 		//Need to sort by Vox Idx, then (sub sort) by Sample idx

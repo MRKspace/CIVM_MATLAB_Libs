@@ -2,6 +2,7 @@ classdef SystemModel
 	properties
 		reconMatrixSize;
 		A;					% System Representation
+		unique_string;
 	end
 	methods
 		function reconVol = imageSpace(obj, reconVol)
