@@ -83,7 +83,7 @@ classdef L2GriddingProximity < GriddingProximity
 			distances = distances/overgridFactor;
 			
 			% Look for any values that are still out of bounds
-			idxInBounds = distances < 0.5*kernel_extent;
+			idxInBounds = distances <= 0.5*(kernel_extent/overgridFactor);
 			sample_idx = sample_idx(idxInBounds);
 			voxel_idx = voxel_idx(idxInBounds);
 			distances = distances(idxInBounds);

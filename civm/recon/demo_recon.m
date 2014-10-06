@@ -5,12 +5,13 @@
 clc; clear all; close all; fclose all;
 
 % Required parameters
+verbose = 1;
 model_type = 'grid'; % nufft or grid or exact
 recon_type = 'lsq';   % lsq (Least Squares) or cg (Conjugate Gradient)
 dcf_type = 'iter'; % iter (Pipe itterative), voronoi (Voronoi), hitplane (hitplant), analytical (analytical), none
 proximity_metric = 'L2'; % L2 (L2-norm) or L1 (L1-norm)
-kernel_type = 'gaussian'; % kaiser-bessel, sinc, gaussian, or optimal
-overgridfactor = 3;
+kernel_type = 'optimal'; % kaiser-bessel, sinc, gaussian, or optimal
+overgridfactor = 2;
 nNeighbors = 3/overgridfactor;   % In recon image size units
 kaiser_b_override = [20];
 sigma = 0.5;
@@ -58,7 +59,7 @@ ascending_ramp_time_override  = 0.992; % pw_gxwa
 descending_ramp_time_override = 0.2;  % pw_gxwd/1000
 plateau_time_override         = 2.976; % pw_gxw/1000
 matrixSize_override = 128*[1 1 1];
-toff_override = 0.00;
+toff_override = 0.006;
 primeplus_override = 137.508;
 
 % % For Proton:
@@ -72,7 +73,6 @@ primeplus_override = 137.508;
 %Optional parameters
 revision_override = [];  %Optional override if it can't be automatically read from the pfile
 nyquistScaling = 1*[1 1 1];
-verbose = 1;
 % pfile_name = filelsqpath('/home/scott/Downloads/P12800.7');
 % pfile_na me = filepath('/home/scott/Public/data/')
 % pfile_name = filepath('/home/scott/Public/data/20140910/CONTROL_CREP_091014/129Xe_vent_scott/P42496.7');
@@ -184,7 +184,7 @@ if(~exist('model','var'))
 						overgridfactor, verbose);
 				case 'optimal'
 					kernelObj = OptimalGriddingKernel(nNeighbors, header.MatrixSize(1), ...
-						overgridfactor, 1000000, 1000, verbose);
+						overgridfactor, 1000000, 100, verbose);
 				otherwise
 					error('Kernel not supported.');
 			end
@@ -230,15 +230,6 @@ if(~exist('reconObj','var'))
 			end
 			
 			reconObj = LsqRecon(model, dcfObj, verbose);
-			
-			switch(dcfObj.dcf_style)
-				case 'gridspace'
-					radial_dcf = (model.A*dcfObj.dcf);
-				case 'dataspace'
-					radial_dcf = dcfObj.dcf;
-				otherwise
-					error('DCF style not recognized');
-			end
 			clear model;
 		case 'cg'
 			reconObj = ConjGradRecon(model, dcfObj, nIter, saveIter, verbose);
