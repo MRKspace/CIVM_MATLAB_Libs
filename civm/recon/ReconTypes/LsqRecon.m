@@ -15,17 +15,17 @@ classdef LsqRecon < Recon
 		end
 		
 		% Reconstructs an image volume using the given data
-		function reconVol = reconstruct(obj,data,snr_weights)
+		function obj = reconstruct(obj,data,snr_weights)
 			if(obj.verbose)
 				disp('Reconstructing image...');
 			end
 			switch(obj.dcfObj.dcf_style)
 				case 'gridspace'
 					nonzero_dcf = (obj.dcfObj.dcf~=0);					
-					reconVol = (obj.model.A' * data);
-					reconVol(nonzero_dcf) = reconVol(nonzero_dcf) .* obj.dcfObj.dcf(nonzero_dcf);
+					obj.model.reconVol = (obj.model.A' * data);
+					obj.model.reconVol(nonzero_dcf) = reconVol(nonzero_dcf) .* obj.dcfObj.dcf(nonzero_dcf);
 				case 'dataspace'
-					reconVol = obj.model.A' * (obj.dcfObj.dcf .* data);
+					obj.model.reconVol = obj.model.A' * (obj.dcfObj.dcf .* data);
 					
 					% We want to solve A'*W*A*x = A'*W*y
 % 					if(obj.verbose)
@@ -66,10 +66,13 @@ classdef LsqRecon < Recon
 				otherwise
 					error('DCF style not recognized');
 			end
-			reconVol = reshape(full(reconVol),obj.model.reconMatrixSize);
+			obj.model.reconVol = reshape(full(obj.model.reconVol),obj.model.reconMatrixSize);
 			if(obj.verbose)
 				disp('Finished Reconstructing image.');
 			end
+			
+			% Put volume into image space
+			obj.model = obj.model.imageSpace();
 		end
 		
 		function true_false = isCompatible(obj,model,dcf_iter)

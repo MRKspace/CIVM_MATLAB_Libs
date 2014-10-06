@@ -10,10 +10,10 @@ recon_type = 'lsq';   % lsq (Least Squares) or cg (Conjugate Gradient)
 dcf_type = 'iter'; % iter (Pipe itterative), voronoi (Voronoi), hitplane (hitplant), analytical (analytical), none
 proximity_metric = 'L2'; % L2 (L2-norm) or L1 (L1-norm)
 kernel_type = 'gaussian'; % kaiser-bessel, sinc, gaussian, or optimal
-overgridfactor = 4;
-nNeighbors = 3;   % In recon image size units
+overgridfactor = 3;
+nNeighbors = 3/overgridfactor;   % In recon image size units
 kaiser_b_override = [20];
-sigma = 0.275;
+sigma = 0.5;
 kludge = 3;
 saveEveryIter = 1;
 nIter = 7; % 25 is overkill, but the recommended default
@@ -53,23 +53,21 @@ extra_string = ['ampSnr' num2str(amplify_snr) '_srnReconWeightPow' num2str(snr_r
 % % primeplus_override = 137.508;
 % primeplus_override = 137.50776405003784;
 
-% % For Ventilation:
-% ascending_ramp_time_override  = 0.992; % pw_gxwa
-% descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-% plateau_time_override         = 2.976; % pw_gxw/1000
-% matrixSize_override = 128*[1 1 1];
-% toff_override = 0.006;
-% primeplus_override = 137.508;
-
-% For Proton:
-ascending_ramp_time_override  = 0.512; % pw_gxwa
+% For Ventilation:
+ascending_ramp_time_override  = 0.992; % pw_gxwa
 descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-plateau_time_override         = 1.536; % pw_gxw/1000
-matrixSize_override = 256*[1 1 1];
-toff_override = 0.05;
-primeplus_override = 101;
-% This demo shows how to batch reconstruct a GE Pfile using Fessler's NUFFT
-% algorithm.
+plateau_time_override         = 2.976; % pw_gxw/1000
+matrixSize_override = 128*[1 1 1];
+toff_override = 0.00;
+primeplus_override = 137.508;
+
+% % For Proton:
+% ascending_ramp_time_override  = 0.512; % pw_gxwa
+% descending_ramp_time_override = 0.2;  % pw_gxwd/1000
+% plateau_time_override         = 1.536; % pw_gxw/1000
+% matrixSize_override = 256*[1 1 1];
+% toff_override = 0.04;
+% primeplus_override = 101;
 
 %Optional parameters
 revision_override = [];  %Optional override if it can't be automatically read from the pfile
@@ -79,8 +77,8 @@ verbose = 1;
 % pfile_na me = filepath('/home/scott/Public/data/')
 % pfile_name = filepath('/home/scott/Public/data/20140910/CONTROL_CREP_091014/129Xe_vent_scott/P42496.7');
 % pfile_name = filepath('/home/scott/Public/pfiles/demo/P16384.7_lung');
-% pfile_name = filepath('/home/scott/Documents/Presentations/Seminar_20140904/LES_082014/129Xe_vent/P46080.7')
-pfile_name = filepath('/home/scott/Desktop/P04096.7');
+pfile_name = filepath('/home/scott/Documents/Presentations/Seminar_20140904/LES_082014/129Xe_vent/P46080.7')
+% pfile_name = filepath('/home/scott/Desktop/P04096.7');
 % pfile_name = filepath('/home/scott/Public/data/20140725/jerry/P03584.7')
 
 %% Read and Process Pfile
@@ -261,48 +259,24 @@ details = ['toff' num2str(toff_override) '_' details];
 disp(['Reconstructing ' details '...']);
 
 % Reconstruct kspace data - Note output is kspace domain
-	switch(lower(recon_type))
-		case 'lsq'
-			reconVol_kspace = reconObj.reconstruct(data, weights);
-		case 'cg'
-			startingGuess = zeros(reconObj.model.reconMatrixSize);
-			reconVol_kspace = reconObj.reconstruct(data, weights,startingGuess(:), @save_function,details);
-		otherwise
-			error('Reconstruction type not supported.');
-	end
-
-% nii = make_nii(abs(reconVol_kspace),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
-% save_nii(nii,['kspace_' details '.nii'],16);
-% clear nii;
-
-% Put data back into image space (undoes overgridding, shifts, etc)
-nSubvols = size(reconVol_kspace,4);
-reconVol = zeros([header.MatrixSize nSubvols]);
-if(nSubvols == 1)
-	reconVol(:,:,:) = reconObj.model.imageSpace(reconVol_kspace);
-else
-	for iIter=1:nSubvols
-		iIter
-		reconVol(:,:,:,iIter) = reconObj.model.imageSpace(reconVol_kspace(:,:,:,iIter));
-	end
+switch(lower(recon_type))
+	case 'lsq'
+		reconObj = reconObj.reconstruct(data, weights);
+	case 'cg'
+		startingGuess = zeros(reconObj.model.reconMatrixSize);
+		reconObj = reconObj.reconstruct(data, weights,startingGuess(:), @save_function,details);
+	otherwise
+		error('Reconstruction type not supported.');
 end
-if(nIter > 1)
-% 	nii = make_nii(abs(reconVol),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
-% 	save_nii(nii,['recon_full_' details '.nii'],16);
-% 	clear nii;
-	
-	nii = make_nii(abs(reconVol(:,:,:,end)),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
-	save_nii(nii,['recon_last_' details '.nii'],16);
-	clear nii;
-else
-	nii = make_nii(abs(reconVol),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
-	save_nii(nii,['recon_' details '.nii'],16);
-	clear nii;
-end
+
+nii = make_nii(abs(reconObj.model.reconVol),header.rdb.rdb_hdr_fov./header.MatrixSize, 0.*header.MatrixSize, [16], 'test');
+save_nii(nii,['recon_' details '.nii'],16);
+clear nii;
+
 
 % Show image
 figure()
-imslice(abs(reconVol),['IMAGE' details]);
+imslice(abs(reconObj.model.reconVol),['IMAGE' details]);
 
 % figure()
 % imslice(fftshift(abs(reconVol_kspace)),['LOG KSPACE' details]);

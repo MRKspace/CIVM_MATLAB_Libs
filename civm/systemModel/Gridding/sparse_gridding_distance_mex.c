@@ -34,6 +34,7 @@
  *  clinical use.
  *
  **************************************************************************/
+
 #include "mex.h"
 #include "sparse_gridding_distance.c"
 
@@ -51,14 +52,18 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	unsigned int max_size;
 	unsigned int dim;
 	double *sparse_distances;
-    double *sparse_sample_indices;
-    double *sparse_voxel_idx;
+	double *sparse_sample_indices;
+	double *sparse_voxel_indices;
+	double *nonsparse_distances;
+	double *nonsparse_sample_indices;
+	double *nonsparse_voxel_indices;
 	mwSignedIndex tempSize[2];
+	unsigned int nSparsePoints = 0;
+	unsigned int i;
 	
 	/* FOR DEBUG ONLY */
 // #define DEBUG 1;
 #ifdef DEBUG
-	unsigned int i;
 	int dim2;
 #endif
 	
@@ -106,7 +111,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 		printf("Max n Neighbors=%u\n",max_nNeighbors);
 	}
 	
-		/* DEBUG PRINTING */
+	/* DEBUG PRINTING */
 #ifdef DEBUG
 	mexPrintf("nDims=%i\n",nDims);
 	mexPrintf("nPts=%i\n\n",nPts);
@@ -124,7 +129,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 		mexPrintf("\toutput_dims[%u]=%u\n",i,output_dims[i]);
 	}
 	mexPrintf("End of ouput_dims.\n\n");
-
+	
 	printf("max nonzero=%u\n",nPts*max_nNeighbors);
 #endif
 	
@@ -134,29 +139,53 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 //     sparse_sample_indices = mxGetIr(plhs[0]);
 //     sparse_first_nonzero_voxel = mxGetJc(plhs[0]);
 	
+	
+	
 	max_size = ceil(nPts*max_nNeighbors);
-	tempSize[0] = 1; // Would be faster with dimensions switched, but this must
-	                 // be consistent with the distances matrix, which is a bigger
-	                 // bottleneck
-	tempSize[1] = max_size;
 	printf("max size=%u\n",max_size);
-	plhs[0] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
-    mxAssert(!mxIsEmpty(plhs[0]),"Sample index matrix was not allocated correctly. Possibly out of memory.");
-    sparse_sample_indices = mxGetPr(plhs[0]);
-
-	plhs[1] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
-    mxAssert(!mxIsEmpty(plhs[1]),"Voxel index matrix was not allocated correctly. Possibly out of memory.");
-    sparse_voxel_idx = mxGetPr(plhs[1]);
-
-	tempSize[0] = nDims;
-	tempSize[1] = max_size;
-	plhs[2] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
-    mxAssert(!mxIsEmpty(plhs[2]),"Distance matrix was not allocated correctly. Possibly out of memory.");
-    sparse_distances = mxGetPr(plhs[2]);
-
+	
+	printf("1 Allocating memory...\n");
+	nonsparse_sample_indices = calloc(max_size, sizeof(double));
+	nonsparse_voxel_indices = calloc(max_size, sizeof(double));
+	nonsparse_distances = calloc(max_size, sizeof(double));
+	if(nonsparse_sample_indices  == NULL){printf("Error allocating memory for nonsparse_sample_indices. Crashing... :)\n");}
+	if(nonsparse_voxel_indices  == NULL){printf("Error allocating memory for nonsparse_voxel_indices. Crashing... :)\n");}
+	if(nonsparse_distances  == NULL){printf("Error allocating memory for nonsparse_distances. Crashing... :)\n");}
+	printf("1 Finished memory...\n");
+	
+	
 	/* Perform the convolution based gridding */
-	sparse_gridding_distance(coords, kernel_width, nPts, nDims, ceil(nPts*max_nNeighbors), output_dims,
-			sparse_sample_indices, sparse_voxel_idx, sparse_distances);
+	sparse_gridding_distance(coords, kernel_width, nPts, nDims, output_dims,
+			nonsparse_sample_indices, nonsparse_voxel_indices,
+			nonsparse_distances, &nSparsePoints, max_size);
+	
+	tempSize[0] = nSparsePoints;
+	tempSize[1] = 1;
+	
+	//Create output matrices
+	plhs[0] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
+	mxAssert(!mxIsEmpty(plhs[0]),"Sample index matrix was not allocated correctly. Possibly out of memory.");
+	sparse_sample_indices = mxGetPr(plhs[0]);
+	
+	plhs[1] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
+	mxAssert(!mxIsEmpty(plhs[1]),"Voxel index matrix was not allocated correctly. Possibly out of memory.");
+	sparse_voxel_indices = mxGetPr(plhs[1]);
+	printf("Finished voxels...\n");
+	
+	plhs[2] = mxCreateNumericArray(2,tempSize,mxDOUBLE_CLASS,mxREAL); // output
+	mxAssert(!mxIsEmpty(plhs[2]),"Distance matrix was not allocated correctly. Possibly out of memory.");
+	sparse_distances = mxGetPr(plhs[2]);
+	
+	// Remove unused sample indices and return result
+	for(i=0; i<nSparsePoints; i++){
+		sparse_distances[i] = nonsparse_distances[i];
+		sparse_sample_indices[i] = nonsparse_sample_indices[i];
+		sparse_voxel_indices[i] = nonsparse_voxel_indices[i];
+	}
+	free(nonsparse_sample_indices);
+	free(nonsparse_voxel_indices);
+	free(nonsparse_distances);
+	printf("Finished distances...\n");
 }
 
 

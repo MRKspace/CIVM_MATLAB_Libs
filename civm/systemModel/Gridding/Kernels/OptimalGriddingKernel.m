@@ -29,11 +29,11 @@ classdef OptimalGriddingKernel < GriddingKernel
 			k_lsp_fine = k_lsp_fine(1:(end-1));
 			delta_k = k_lsp_fine(2)-k_lsp_fine(1);
 			
-			i_lsp_fine = linspace(-0.5/delta_k,0.5/delta_k,lut_size);
+			i_lsp_fine = linspace(-0.5/delta_k,0.5/delta_k,overgridsize*lut_size);
 			
 			% Create binary bounding functions
 			k_bound = (abs(k_lsp_fine) <= (0.5*kern_size_k));
-			i_bound = (abs(i_lsp_fine) <= 0.5*imageSize*1.2*obj.overgrid_factor);
+			i_bound = (abs(i_lsp_fine) <= 0.5*imageSize);
 			
 			% Create plot bounds
 			k_plot = (abs(k_lsp_fine) <= kern_size_k);
