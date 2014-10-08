@@ -1,6 +1,3 @@
-% Restore default path
-restoredefaultpath();
-
 rootDistribDir = pwd();
 
 % Load 3p libs
@@ -15,7 +12,7 @@ clear irtdir;
 
 % Load my personal libs
 disp('Loading Distributed Libs...');
-path(genpath([rootDistribDir filesep() 'ScottLibs' filesep() 'Distrib']),path);
+path(genpath([rootDistribDir filesep() 'civm' ]),path);
 
 % Compile Fesslers MEX code
 disp('Compiling Fesslers Mex code...');
@@ -24,3 +21,5 @@ run([rootDistribDir filesep() '3pLibs' filesep() ...
     'mex_build_mri.m']);
 
 disp('Everything is stetup nicely. Enjoy...');
+
+

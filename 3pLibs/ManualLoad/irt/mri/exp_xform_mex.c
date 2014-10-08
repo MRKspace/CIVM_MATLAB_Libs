@@ -1,5 +1,5 @@
-// exp_xform_mex.c
-// Copyright 2004-9-23, Jeff Fessler, University of Michigan
+// exp_xform_mex.c 
+//Copyright 2004-9-23, Jeff Fessler, University of Michigan
 
 #include "mex.h"
 #include "math.h"
@@ -38,8 +38,8 @@ static void exp_xform_double
 #undef dtype
 
 
-// exp_xform_mex()
-// secondary gateway
+/* exp_xform_mex()
+   secondary gateway */
 static bool exp_xform_mex(
 mxArray *plhs[],
 const mxArray *mxx,
@@ -60,11 +60,11 @@ const mxArray *mxv)
 	if (!mxIsComplex(mxu)){	Fail("u must be complex");}
 	if (!mxIsComplex(mxv)){	Fail("v must be complex");}
 
-	// input sizes
-	NN = mxGetM(mxx); // N
-	LL = mxGetN(mxx); // L
+	/* input sizes */
+	NN = mxGetM(mxx); /* N */
+	LL = mxGetN(mxx); /* L */
 
-	// check input size
+	/* check input size */
 	if (NN != (int) mxGetN(mxu))
 	{
 		printf("NN=%d size(u,2)=%d\n", NN, (int) mxGetN(mxu));
@@ -83,7 +83,7 @@ const mxArray *mxv)
 	printf("MM=%d LL=%d NN=%d DD=%d\n", MM, LL, NN, DD);
 #endif
 
-	// create output matrix [M L]
+	/* create output matrix [M L] */
 	if (!(plhs[0] = mxCreateNumericMatrix (MM, LL,
 		is_single ? mxSINGLE_CLASS : mxDOUBLE_CLASS,
 		mxCOMPLEX)))
@@ -133,7 +133,7 @@ const mxArray *mxv)
 }
 
 
-// Gateway routine - Interface with Matlab
+/* Gateway routine - Interface with Matlab */
 void mexFunction(
 int nlhs, mxArray *plhs[],
 int nrhs, const mxArray *prhs[])
@@ -145,7 +145,7 @@ int nrhs, const mxArray *prhs[])
 	}
 
     mexPrintf("\nRunning Fessler's mex....\n");
-	if (nlhs == 0 && nrhs == 1 && mxIsChar(prhs[0])) // check
+	if (nlhs == 0 && nrhs == 1 && mxIsChar(prhs[0])) /* check */
 		return;
 	if (nlhs > 1 || nrhs != 3)
 		fprintf(stderr, Usage);

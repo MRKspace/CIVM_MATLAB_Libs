@@ -6,7 +6,7 @@
 if ~isvar('A'), printm 'setup Gdft object'
 	Nd = [1 3/2] * 2^7;
 	rng(0)
-	samp = rand(Nd) > 0.3;
+	samp = rand(Nd) > 0.7;
 	mask = true(Nd);
 	mask(1) = false; % todo: stress
 	A = Gdft('mask', mask, 'samp', samp);
@@ -95,7 +95,7 @@ prompt
 		if (get(hb, 'value')) % stop button
 			break
 		end
-		thresh = tfun( get( hu, 'value') );
+		thresh = tfun( get( hu, 'value') )
 		if thresh_save ~= thresh
 			thresh_save = thresh;
 			iter = 1;
