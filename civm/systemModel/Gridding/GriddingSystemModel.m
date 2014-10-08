@@ -42,27 +42,6 @@ classdef GriddingSystemModel < SystemModel
 		function obj = imageSpace(obj)
 			obj.reconVol = imageSpace@SystemModel(obj,obj.reconVol);
 			
-			%  Shift data by fov/4
-			% 			reconVol = circshift(reconVol,round(0.5*(obj.reconMatrixSize-obj.outputImageSize)));
-			obj.reconVol = circshift(obj.reconVol,0.5*obj.outputImageSize);
-			
-			% Crop BL corner
-			obj.reconVol = obj.reconVol(1:obj.outputImageSize(1),...
-				1:obj.outputImageSize(2), ...
-				1:obj.outputImageSize(3));
-			
-						% Deapodize - consider making at lower res
-			obj.reconVol = obj.proximetyObj.deapodize(obj.neighborhoodSize,1,obj.outputImageSize,obj.reconVol);
-			
-% 			% center the DC freq
-% 			obj.reconVol = fftshift(obj.reconVol);
-% 			
-% 			% Deapodize - consider making at lower res
-% 			obj.reconVol = obj.proximetyObj.deapodize(obj.neighborhoodSize,obj.overgridFactor,obj.reconMatrixSize,obj.reconVol);
-% 			
-% 			% Uncenter the DC freq
-% 			obj.reconVol = fftshift(obj.reconVol);
-% 			
 % 			%  Shift data by fov/4
 % 			% 			reconVol = circshift(reconVol,round(0.5*(obj.reconMatrixSize-obj.outputImageSize)));
 % 			obj.reconVol = circshift(obj.reconVol,0.5*obj.outputImageSize);
@@ -71,6 +50,27 @@ classdef GriddingSystemModel < SystemModel
 % 			obj.reconVol = obj.reconVol(1:obj.outputImageSize(1),...
 % 				1:obj.outputImageSize(2), ...
 % 				1:obj.outputImageSize(3));
+% 			
+% 						% Deapodize  at lower res
+% 			obj.reconVol = obj.proximetyObj.deapodize(obj.neighborhoodSize,1,obj.outputImageSize,obj.reconVol);
+			
+			% center the DC freq
+			obj.reconVol = fftshift(obj.reconVol);
+			
+			% Deapodize - consider making at lower res
+			obj.reconVol = obj.proximetyObj.deapodize(obj.neighborhoodSize,obj.overgridFactor,obj.reconMatrixSize,obj.reconVol);
+			
+			% Uncenter the DC freq
+			obj.reconVol = fftshift(obj.reconVol);
+			
+			%  Shift data by fov/4
+			% 			reconVol = circshift(reconVol,round(0.5*(obj.reconMatrixSize-obj.outputImageSize)));
+			obj.reconVol = circshift(obj.reconVol,0.5*obj.outputImageSize);
+			
+			% Crop BL corner
+			obj.reconVol = obj.reconVol(1:obj.outputImageSize(1),...
+				1:obj.outputImageSize(2), ...
+				1:obj.outputImageSize(3));
 		end
 		
 		function true_false = isCompatible(obj,traj,header,overgridfactor,nNeighbors);

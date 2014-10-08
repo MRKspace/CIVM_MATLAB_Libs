@@ -33,7 +33,7 @@ classdef OptimalGriddingKernel < GriddingKernel
 			
 			% Create binary bounding functions
 			k_bound = (abs(k_lsp_fine) < (0.5*kern_size_k));
-			i_bound = (abs(i_lsp_fine) <= 0.5*imageSize*1.2);
+			i_bound = (abs(i_lsp_fine) <= 0.5*imageSize*obj.overgrid_factor);
 			
 			% Create plot bounds
 			k_plot = (abs(k_lsp_fine) <= kern_size_k);

@@ -10,14 +10,14 @@ model_type = 'grid'; % nufft or grid or exact
 recon_type = 'lsq';   % lsq (Least Squares) or cg (Conjugate Gradient)
 dcf_type = 'iter'; % iter (Pipe itterative), voronoi (Voronoi), hitplane (hitplant), analytical (analytical), none
 proximity_metric = 'L2'; % L2 (L2-norm) or L1 (L1-norm)
-kernel_type = 'optimal'; % kaiser-bessel, sinc, gaussian, or optimal
+kernel_type = 'gaussian'; % kaiser-bessel, sinc, gaussian, or optimal
 overgridfactor = 2;
-nNeighbors = 3/overgridfactor;   % In recon image size units
+nNeighbors = 3;   % In recon image size units
 kaiser_b_override = [20];
-sigma = 0.5;
+sigma = 0.275;
 kludge = 3;
 saveEveryIter = 1;
-nIter = 7; % 25 is overkill, but the recommended default
+nIter = 5; % 25 is overkill, but the recommended default
 saveIter = unique([[1:100:nIter] nIter]); % only for CG recon
 % saveIter = unique([nIter]); % only for CG recon
 amplify_snr = 0; % Amplify signal to account for decay?
@@ -36,9 +36,9 @@ extra_string = ['ampSnr' num2str(amplify_snr) '_srnReconWeightPow' num2str(snr_r
 
 % % % Rohan parameters :)
 % % For Dissolved:
-% ascending_ramp_time_override  = 0.252; % pw_gxwa
+% ascending_ramp_time_override  = 0.252; % pw_gxwan
 % descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-% plateau_time_override         = 0.764; % pw_gxw/1000
+% plateau_time_over1.000ride         = 0.764; % pw_gxw/1000
 % matrixSize_override = [128 128 128];
 % toff_override = 0.006+2*0.062;
 % primeplus_override = 137.50776405003784;
@@ -54,21 +54,21 @@ extra_string = ['ampSnr' num2str(amplify_snr) '_srnReconWeightPow' num2str(snr_r
 % % primeplus_override = 137.508;
 % primeplus_override = 137.50776405003784;
 
-% For Ventilation:
-ascending_ramp_time_override  = 0.992; % pw_gxwa
-descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-plateau_time_override         = 2.976; % pw_gxw/1000
-matrixSize_override = 128*[1 1 1];
-toff_override = 0.006;
-primeplus_override = 137.508;
-
-% % For Proton:
-% ascending_ramp_time_override  = 0.512; % pw_gxwa
+% % For Ventilation:
+% ascending_ramp_time_override  = 0.992; % pw_gxwa
 % descending_ramp_time_override = 0.2;  % pw_gxwd/1000
-% plateau_time_override         = 1.536; % pw_gxw/1000
-% matrixSize_override = 256*[1 1 1];
-% toff_override = 0.04;
-% primeplus_override = 101;
+% plateau_time_override         = 2.976; % pw_gxw/1000
+% matrixSize_override = 128*[1 1 1];
+% toff_override = 0.006;
+% primeplus_override = 137.508;
+
+% For Proton:
+ascending_ramp_time_override  = 0.512; % pw_gxwa
+descending_ramp_time_override = 0.2;  % pw_gxwd/1000
+plateau_time_override         = 1.536; % pw_gxw/1000
+matrixSize_override = 256*[1 1 1];
+toff_override = 0.04;
+primeplus_override = 101;
 
 %Optional parameters
 revision_override = [];  %Optional override if it can't be automatically read from the pfile
@@ -77,8 +77,8 @@ nyquistScaling = 1*[1 1 1];
 % pfile_na me = filepath('/home/scott/Public/data/')
 % pfile_name = filepath('/home/scott/Public/data/20140910/CONTROL_CREP_091014/129Xe_vent_scott/P42496.7');
 % pfile_name = filepath('/home/scott/Public/pfiles/demo/P16384.7_lung');
-pfile_name = filepath('/home/scott/Documents/Presentations/Seminar_20140904/LES_082014/129Xe_vent/P46080.7')
-% pfile_name = filepath('/home/scott/Desktop/P04096.7');
+% pfile_name = filepath('/home/scott/Documents/Presentations/Seminar_20140904/LES_082014/129Xe_vent/P46080.7')
+pfile_name = filepath('/home/scott/Desktop/P04096.7');
 % pfile_name = filepath('/home/scott/Public/data/20140725/jerry/P03584.7')
 
 %% Read and Process Pfile
@@ -166,7 +166,7 @@ if(~exist('model','var'))
 	% Note, creating this object can be computationally intensive
 	switch(lower(model_type))
 		case 'exact'
-			model = ExactSystemModel( traj,header.MatrixSize);
+			model = ExactSystemModel( traj,overgridfactor, header.MatrixSize);
 		case 'nufft'
 			model = NufftSystemModel(traj, header.MatrixSize, ...
 				overgridfactor, [nNeighbors nNeighbors nNeighbors]);
@@ -184,7 +184,7 @@ if(~exist('model','var'))
 						overgridfactor, verbose);
 				case 'optimal'
 					kernelObj = OptimalGriddingKernel(nNeighbors, header.MatrixSize(1), ...
-						overgridfactor, 1000000, 100, verbose);
+						overgridfactor, 1000000, 1000, verbose);
 				otherwise
 					error('Kernel not supported.');
 			end
