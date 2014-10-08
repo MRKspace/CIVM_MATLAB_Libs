@@ -66,7 +66,7 @@ extra_string = ['ampSnr' num2str(amplify_snr) '_srnReconWeightPow' num2str(snr_r
 ascending_ramp_time_override  = 0.512; % pw_gxwa
 descending_ramp_time_override = 0.2;  % pw_gxwd/1000
 plateau_time_override         = 1.536; % pw_gxw/1000
-matrixSize_override = 256*[1 1 1];
+matrixSize_override = 128*[1 1 1];
 toff_override = 0.04;
 primeplus_override = 101;
 
